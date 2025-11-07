@@ -1,5 +1,35 @@
 :root {
-  --primary-color:#3D8FFF;
-  --secondary-color:#D4D4D6;
+  --primary-color: #3D8FFF;
+  --primary-color-light: #E3F2FD;
+  --primary-color-dark: #2563EB;
+  --secondary-color: #D4D4D6;
   --background-color: #FFF;
+  --text-color: #1F2937;
+  --tertiary-color: #6B7280;
+  --tertiary-color-light: #9CA3AF;
+  --tertiary-color-dark: #4B5563;
+}
+html {
+  font-size: 62.5%;
+  scroll-behavior: smooth;
+}
+@media only screen and (max-width: 75em) {
+  html {
+    font-size: 55%;
+  }
+}
+@media only screen and (max-width: 56.25em) {
+  html {
+    font-size: 45%;
+  }
+}
+@media only screen and (max-width: 47.93em) {
+  html {
+    font-size: 40%;
+  }
+}
+@media only screen and (max-width: 37.5em) {
+  html {
+    font-size: 30%;
+  }
 }

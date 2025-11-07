@@ -1,1 +1,100 @@
-<p>topbar works!</p>
+<div class="topbar">
+  <!-- Burger Menu for Sidebar (Mobile Only) -->
+  <button
+    class="burger-menu d-lg-none"
+    type="button"
+    data-bs-toggle="offcanvas"
+    data-bs-target="#sidebarOffcanvas"
+    aria-controls="sidebarOffcanvas">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- Logo Section -->
+  <div class="topbar-logo">
+    <div class="logo-icon">
+      <i class="fas fa-briefcase-medical"></i>
+    </div>
+    <span class="logo-text">Doc-Center</span>
+  </div>
+
+  <!-- Right Section: Notifications, Profile -->
+  <div class="topbar-right ms-auto">
+    <!-- Notifications Dropdown -->
+    <div class="dropdown">
+      <button
+        class="icon-btn notification-btn"
+        type="button"
+        id="notificationDropdown"
+        data-bs-toggle="dropdown"
+        aria-expanded="false">
+        <i class="fas fa-bell"></i>
+        @if (notificationCount > 0) {
+          <span class="notification-badge">
+            {{ notificationCount }}
+          </span>
+        }
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationDropdown">
+        <li class="dropdown-header">
+          <h6>Notifications</h6>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        @for (notification of notifications; track notification.title) {
+          <li>
+            <a class="dropdown-item notification-item" href="javascript:void(0)">
+              <div class="notification-icon" [ngClass]="notification.type">
+                <i [class]="notification.icon"></i>
+              </div>
+              <div class="notification-content">
+                <p class="notification-title">{{ notification.title }}</p>
+                <p class="notification-time">{{ notification.time }}</p>
+              </div>
+            </a>
+          </li>
+        }
+        @if (notifications.length === 0) {
+          <li>
+            <a class="dropdown-item text-center text-muted">No new notifications</a>
+          </li>
+        }
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item text-center text-primary view-all-notifications" href="javascript:void(0)">
+            View All Notifications
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Profile Dropdown -->
+    <div class="dropdown profile-dropdown">
+      <button
+        class="profile-btn"
+        type="button"
+        id="profileDropdown"
+        data-bs-toggle="dropdown"
+        aria-expanded="false">
+        <div class="profile-avatar">
+          <i class="fas fa-user"></i>
+        </div>
+        <div class="profile-info">
+          <span class="profile-name">{{ userProfile.name }}</span>
+          <span class="profile-role">{{ userProfile.role }}</span>
+        </div>
+        <i class="fas fa-chevron-down profile-arrow"></i>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+        <li>
+          <a class="dropdown-item" [routerLink]="['/profile']">
+            <i class="fas fa-user-circle"></i> Profile
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" [routerLink]="['/change-password']">
+            <i class="fas fa-key"></i> Change Password
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,1 +1,82 @@
-<p>sidebar works!</p>
+<div class="sidebar">
+  <!-- Welcome Section -->
+  <div class="sidebar-welcome">
+    <div class="welcome-avatar">
+      <i class="fas fa-user-md"></i>
+    </div>
+    <div class="welcome-text">
+      <span class="welcome-greeting">Welcome back,</span>
+      <span class="welcome-name">Dr. Mark</span>
+    </div>
+  </div>
+
+  <!-- Navigation Items -->
+  <nav class="sidebar-nav">
+    @for(item of navItems;track item){
+          <a
+      [routerLink]="item.route"
+      routerLinkActive="active"
+      class="nav-item">
+      <i [class]="item.icon"></i>
+      <span>{{ item.label }}</span>
+    </a>
+
+    }
+  </nav>
+
+  <!-- Logout Button at Bottom -->
+  <div class="sidebar-footer">
+    <button class="logout-btn" (click)="logout()">
+      <i class="fas fa-sign-out-alt"></i>
+      <span>Logout</span>
+    </button>
+  </div>
+</div>
+
+<!-- Mobile Offcanvas Sidebar -->
+<div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="sidebarOffcanvasLabel">
+      <div class="logo-icon-mobile">
+        <i class="fas fa-briefcase-medical"></i>
+      </div>
+      <span>Doc-Center</span>
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <!-- Welcome Section -->
+    <div class="sidebar-welcome">
+      <div class="welcome-avatar">
+        <i class="fas fa-user-md"></i>
+      </div>
+      <div class="welcome-text">
+        <span class="welcome-greeting">Welcome back,</span>
+        <span class="welcome-name">Dr. Mark</span>
+      </div>
+    </div>
+
+    <!-- Navigation Items -->
+    <nav class="sidebar-nav">
+      @for(item of navItems;track item){
+            <a
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        class="nav-item"
+        data-bs-dismiss="offcanvas">
+        <i [class]="item.icon"></i>
+        <span>{{ item.label }}</span>
+      </a>
+
+      }
+    </nav>
+
+    <!-- Logout Button at Bottom -->
+    <div class="sidebar-footer">
+      <button class="logout-btn" (click)="logout()" data-bs-dismiss="offcanvas">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>Logout</span>
+      </button>
+    </div>
+  </div>
+</div>
