@@ -1,12 +1,9 @@
 .footer {
-  position: fixed;
-  bottom: 0;
-  left: 25rem;
-  right: 0;
+  margin-left: 25rem;
   background-color: var(--background-color);
   border-top: 1px solid #E5E7EB;
   padding: 1.5rem 3rem;
-  z-index: 998;
+  margin-top: auto;
 }
 
 .footer-content {
@@ -54,7 +51,7 @@
 /* Responsive */
 @media (max-width: 991px) {
   .footer {
-    left: 0;
+    margin-left: 0;
     padding: 1.5rem;
   }
 

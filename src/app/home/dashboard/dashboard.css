@@ -1,0 +1,195 @@
+.dashboard-container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 3rem;
+}
+
+.page-header h1 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.page-header .text-muted {
+  color: var(--tertiary-color);
+  font-size: 1.4rem;
+}
+
+/* Stat Cards */
+.stat-card {
+  background: var(--background-color);
+  border-radius: 1.2rem;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-0.5rem);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  color: var(--background-color);
+  flex-shrink: 0;
+}
+
+.stat-icon.dashboard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-icon.patients {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.stat-icon.doctors {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-icon.messages {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.stat-icon.payments {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.stat-content h3 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.stat-content p {
+  color: var(--tertiary-color);
+  font-size: 1.4rem;
+  margin: 0.5rem 0 0 0;
+}
+
+/* Cards */
+.card {
+  background: var(--background-color);
+  border-radius: 1.2rem;
+  border: none;
+  box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.card-header {
+  background: var(--background-color);
+  border-bottom: 0.1rem solid var(--secondary-color);
+  padding: 2rem 2.5rem;
+}
+
+.card-header h5 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.card-body {
+  padding: 2.5rem;
+}
+
+/* Table */
+.table {
+  margin: 0;
+}
+
+.table thead th {
+  border-bottom: 0.2rem solid var(--secondary-color);
+  color: var(--tertiary-color);
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1.2rem;
+  background-color: var(--primary-color-light);
+}
+
+.table tbody td {
+  padding: 1.5rem 1.2rem;
+  vertical-align: middle;
+  border-bottom: 0.1rem solid var(--secondary-color);
+  font-size: 1.4rem;
+  color: var(--text-color);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background-color: var(--primary-color-light);
+}
+
+.patient-avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--background-color);
+  font-weight: 600;
+  font-size: 1.4rem;
+}
+
+.badge {
+  padding: 0.6rem 1.2rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  border-radius: 0.6rem;
+}
+
+/* Buttons */
+.btn {
+  padding: 1.2rem 2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  border-radius: 0.8rem;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-color-dark);
+  border-color: var(--primary-color-dark);
+  transform: translateY(-0.2rem);
+  box-shadow: 0 0.4rem 1.2rem rgba(61, 143, 255, 0.3);
+}
+
+.btn-outline-primary {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--background-color);
+  transform: translateY(-0.2rem);
+}

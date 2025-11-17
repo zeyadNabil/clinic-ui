@@ -1,0 +1,16 @@
+/* Main Container Layout */
+.main-container {
+  margin-left: 25rem;
+  margin-top: 7rem;
+  padding: 2rem 3rem 3rem 3rem;
+  background-color: #F9FAFB;
+}
+
+/* Responsive - Account for mobile topbar */
+@media (max-width: 991px) {
+  .main-container {
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+}
+
