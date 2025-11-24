@@ -1,1 +1,73 @@
-<p>register works!</p>
+<!-- src/app/authentication/register/register.component.html -->
+<div class="login-container">
+
+  <!-- Left Side - Same Illustration -->
+  <div class="left-panel">
+    <div class="logo">
+      <h2>Upteamist</h2>
+    </div>
+    <div class="illustration">
+      <img src="./undraw_medicine_hqqg.svg" alt="Medicine illustration" class="login-illustration">
+    </div>
+    <div class="welcome-text">
+      <h1>Welcome!</h1>
+      <p>Your health, our priority</p>
+      <div class="dots">
+        <span class="active"></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side - Register Form -->
+  <div class="right-panel">
+    <div class="form-card">
+      <h2 class="text-primary mb-4">Create Account</h2>
+      <p class="text-muted mb-4">
+        Already have an account? 
+        <a routerLink="/login" class="text-primary fw-bold">Log in here</a>
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+        <!-- Full Name -->
+        <div class="mb-3">
+          <label class="form-label text-muted">Full Name</label>
+          <div class="input-group">
+            <input type="text" class="form-control" formControlName="name" placeholder="John Doe">
+            <span class="input-group-text"><i class="bi bi-person"></i></span>
+          </div>
+        </div>
+
+        <!-- Username / Email -->
+        <div class="mb-3">
+          <label class="form-label text-muted">Username or Email</label>
+          <div class="input-group">
+            <input type="text" class="form-control" formControlName="username" placeholder="Enter username or email">
+            <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="mb-4">
+          <label class="form-label text-muted">Password</label>
+          <div class="input-group">
+            <input type="password" class="form-control" formControlName="password" placeholder="Create a strong password">
+            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold" [disabled]="loading || form.invalid">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
+          Create Account
+        </button>
+      </form>
+
+      <p class="text-center mt-4 text-muted small">
+        By creating an account, you agree to our <a href="#" class="text-primary">Terms</a> and <a href="#" class="text-primary">Privacy Policy</a>.
+      </p>
+    </div>
+  </div>
+</div>

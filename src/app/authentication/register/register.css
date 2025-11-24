@@ -1,0 +1,91 @@
+/* src/app/authentication/login/login.component.css */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.left-panel {
+  flex: 1;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: white;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.logo h2 {
+  font-weight: 700;
+  font-size: 2rem;
+  margin: 0;
+}
+
+.illustration img {
+  max-width: 80%;
+  margin: 0 auto;
+  display: block;
+}
+
+.welcome-text h1 {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.welcome-text p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.dots {
+  margin-top: 30px;
+}
+
+.dots span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  margin: 0 6px;
+}
+
+.dots .active {
+  background: white;
+}
+
+.right-panel {
+  flex: 1;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.form-card {
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 420px;
+}
+
+.input-group .form-control {
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+}
+
+.input-group .input-group-text {
+  background: white;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+}
+
+.btn-primary {
+  background: #007bff;
+  border: none;
+  height: 50px;
+}
