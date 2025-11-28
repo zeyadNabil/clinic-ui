@@ -1,73 +1,130 @@
-<!-- src/app/authentication/register/register.component.html -->
-<div class="login-container">
+<div class="login-fullscreen-wrapper">
+  <div class="login-container">
 
-  <!-- Left Side - Same Illustration -->
-  <div class="left-panel">
-    <div class="logo">
-      <h2>Upteamist</h2>
-    </div>
-    <div class="illustration">
-      <img src="./undraw_medicine_hqqg.svg" alt="Medicine illustration" class="login-illustration">
-    </div>
-    <div class="welcome-text">
-      <h1>Welcome!</h1>
-      <p>Your health, our priority</p>
-      <div class="dots">
-        <span class="active"></span>
-        <span></span>
-        <span></span>
+    <!-- Left Side - Illustration -->
+    <div class="left-panel">
+      <div class="logo">
+        <h2>CLINIC</h2>
+      </div>
+
+      <img src="/assets/images/undraw_medicine_hqqg.svg" 
+     alt="Medicine illustration" 
+     class="login-illustration">
+     
+      <div class="welcome-text">
+        <h1>welcome!</h1>
+        <p>Your health, our priority</p>
+        <div class="dots">
+          <span></span>
+          <span class="active"></span>
+          <span></span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Right Side - Register Form -->
-  <div class="right-panel">
-    <div class="form-card">
-      <h2 class="text-primary mb-4">Create Account</h2>
-      <p class="text-muted mb-4">
-        Already have an account? 
-        <a routerLink="/login" class="text-primary fw-bold">Log in here</a>
-      </p>
+    <!-- Right Side -  -->
+    <div class="right-panel">
+      <div class="form-card">
+        <h2 class="text-primary mb-3">Create Account</h2>
+        <p class="text-muted mb-4">
+          Already have an account?
+          <a routerLink="/auth/login" class="text-primary fw-bold">Sign in</a>
+        </p>
 
-      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
-        <!-- Full Name -->
-        <div class="mb-3">
-          <label class="form-label text-muted">Full Name</label>
-          <div class="input-group">
-            <input type="text" class="form-control" formControlName="name" placeholder="John Doe">
-            <span class="input-group-text"><i class="bi bi-person"></i></span>
+          <!-- Username -->
+          <div class="mb-3">
+            <label class="form-label text-muted">Username</label>
+            <div class="input-group">
+              <input type="text"
+                     class="form-control"
+                     [class.is-invalid]="hasError('username')"
+                     formControlName="username"
+                     placeholder="Choose a username">
+              <span class="input-group-text"><i class="bi bi-person"></i></span>
+            </div>
+
+            @if (hasError('username')) {
+              <div class="invalid-feedback">
+                Username is required (3+ chars).
+              </div>
+            }
           </div>
-        </div>
 
-        <!-- Username / Email -->
-        <div class="mb-3">
-          <label class="form-label text-muted">Username or Email</label>
-          <div class="input-group">
-            <input type="text" class="form-control" formControlName="username" placeholder="Enter username or email">
-            <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+          <!-- Email -->
+          <div class="mb-3">
+            <label class="form-label text-muted">Email</label>
+            <div class="input-group">
+              <input type="email"
+                     class="form-control"
+                     [class.is-invalid]="hasError('email')"
+                     formControlName="email"
+                     placeholder="you@example.com">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            </div>
+
+            @if (hasError('email')) {
+              <div class="invalid-feedback">
+                Enter a valid email.
+              </div>
+            }
           </div>
-        </div>
 
-        <!-- Password -->
-        <div class="mb-4">
-          <label class="form-label text-muted">Password</label>
-          <div class="input-group">
-            <input type="password" class="form-control" formControlName="password" placeholder="Create a strong password">
-            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+          <!-- Password -->
+          <div class="mb-3">
+            <label class="form-label text-muted">Password</label>
+            <div class="input-group">
+              <input type="password"
+                     class="form-control"
+                     [class.is-invalid]="hasError('password')"
+                     formControlName="password"
+                     placeholder="Choose a password">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+            </div>
+
+            @if (hasError('password')) {
+              <div class="invalid-feedback">
+                Password must be at least 6 characters.
+              </div>
+            }
           </div>
-        </div>
 
-        <!-- Submit Button -->
-        <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold" [disabled]="loading || form.invalid">
-          <span *ngIf="loading" class="spinner-border spinner-border-sm me-2"></span>
-          Create Account
-        </button>
-      </form>
+          <!-- Confirm Password -->
+          <div class="mb-3">
+            <label class="form-label text-muted">Confirm Password</label>
+            <div class="input-group">
+              <input type="password"
+                     class="form-control"
+                     [class.is-invalid]="hasError('confirmPassword') || passwordMismatch"
+                     formControlName="confirmPassword"
+                     placeholder="Repeat password">
+              <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+            </div>
 
-      <p class="text-center mt-4 text-muted small">
-        By creating an account, you agree to our <a href="#" class="text-primary">Terms</a> and <a href="#" class="text-primary">Privacy Policy</a>.
-      </p>
+            @if (hasError('confirmPassword')) {
+              <div class="invalid-feedback">
+                Please confirm your password.
+              </div>
+            }
+
+            @if (passwordMismatch) {
+              <div class="invalid-feedback">
+                Passwords do not match.
+              </div>
+            }
+          </div>
+
+          <!-- Submit -->
+          <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold" [disabled]="loading">
+            @if (loading) {
+              <span class="spinner-border spinner-border-sm me-2"></span>
+            }
+            Create account
+          </button>
+        </form>
+      </div>
     </div>
+
   </div>
 </div>

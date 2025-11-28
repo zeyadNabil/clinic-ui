@@ -1,91 +1,146 @@
-/* src/app/authentication/login/login.component.css */
+.login-fullscreen-wrapper {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
 .login-container {
-  min-height: 100vh;
+  width: 100%;
+  height: 100%;
   display: flex;
-  font-family: 'Segoe UI', sans-serif;
 }
 
 .left-panel {
   flex: 1;
-  background: linear-gradient(135deg, #007bff, #0056b3);
+  background: linear-gradient(135deg, var(--primary-color) 0%, #5a67d8 100%);
   color: white;
-  padding: 40px;
+  padding: 4rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  position: relative;
+  align-items: center;
+  text-align: center;
+  overflow: hidden;
 }
 
-.logo h2 {
+.left-panel h2 {
+  font-size: 4.5rem;
   font-weight: 700;
-  font-size: 2rem;
-  margin: 0;
+  color: white;
 }
 
-.illustration img {
-  max-width: 80%;
-  margin: 0 auto;
-  display: block;
+.login-illustration {
+  max-width: 75%;
+  max-height: 50vh;
+  object-fit: contain;
 }
 
-.welcome-text h1 {
-  font-size: 3rem;
-  font-weight: 700;
+.left-panel h1 {
+  font-size: 5.5rem;
+  font-weight: 900;
+  margin: 1rem 0;
 }
 
-.welcome-text p {
-  font-size: 1.1rem;
-  opacity: 0.9;
-}
-
-.dots {
-  margin-top: 30px;
-}
-
-.dots span {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.4);
-  margin: 0 6px;
-}
-
-.dots .active {
-  background: white;
+.left-panel p {
+  font-size: 1.9rem;
+  opacity: 0.95;
 }
 
 .right-panel {
   flex: 1;
-  background: #f8f9fa;
+  background: var(--background-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 3rem;
+  overflow: hidden;
 }
 
 .form-card {
-  background: white;
-  padding: 40px;
-  border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
+  background: var(--background-color);
+  border-radius: 1.2rem;
+  padding: 3.5rem;
+  box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.input-group .form-control {
-  border-right: none;
-  border-radius: 8px 0 0 8px;
+.form-card:hover {
+  transform: translateY(-0.5rem);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.1);
 }
 
-.input-group .input-group-text {
-  background: white;
-  border-left: none;
-  border-radius: 0 8px 8px 0;
+.form-card h2 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--text-color);
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.form-card .text-muted {
+  color: var(--tertiary-color);
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.form-label {
+  color: var(--tertiary-color);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.form-control {
+  height: 54px;
+  border-radius: 0.8rem;
+  font-size: 1.4rem;
+  padding: 0 1rem;
+}
+
+.input-group-text {
+  border-radius: 0 0.8rem 0.8rem 0;
+  background: #f8f9fa;
 }
 
 .btn-primary {
-  background: #007bff;
-  border: none;
-  height: 50px;
+  padding: 1.2rem 2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  border-radius: 0.8rem;
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-color-dark);
+  border-color: var(--primary-color-dark);
+  transform: translateY(-0.2rem);
+  box-shadow: 0 0.4rem 1.2rem rgba(61, 143, 255, 0.3);
+}
+
+.text-primary { color: var(--primary-color) !important; }
+.fw-bold { font-weight: 700 !important; }
+
+/* Validation styles – add at the bottom of login.component.css */
+.form-control.is-invalid,
+.input-group .form-control.is-invalid {
+  border-color: #dc3545;
+}
+
+.input-group .is-invalid ~ .input-group-text {
+  border-color: #dc3545;
+}
+
+.invalid-feedback {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: #dc3545;
+  font-weight: 500;
 }

@@ -30,4 +30,10 @@ export class Login {
       this.router.navigate(['/dashboard']);
     }, 1500);
   }
+
+  
+  hasError(field: string): boolean {
+    const control = this.form.get(field);
+    return !!(control && control.invalid && control.touched);
+  }
 }
