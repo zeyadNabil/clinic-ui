@@ -1,13 +1,19 @@
-<!-- Sidebar -->
-<app-sidebar></app-sidebar>
+<!-- Sidebar-->
+@if (show) {
+  <app-sidebar></app-sidebar>
+}
 
-<!-- Topbar ---->
-<app-topbar></app-topbar>
+<!-- Topbar -->
+@if (show) {
+  <app-topbar></app-topbar>
+}
 
 <!-- Main Content Area -->
-<div class="main-container">
+<div class="main-container" [class.full-width]="!show">
   <router-outlet />
 </div>
 
 <!-- Footer -->
-<app-footer></app-footer>
+@if (show) {
+  <app-footer></app-footer>
+}

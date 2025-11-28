@@ -18,15 +18,18 @@ export class App {
   show = true;
 
   constructor() {
+    // Check initial route
+    this.checkRoute(this.router.url);
+
+    // Listen to route changes
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: NavigationEnd) => {
-        const hideFor = ['/login', '/register'];
-        this.show = !hideFor.includes(event.urlAfterRedirects);
+        this.checkRoute(event.urlAfterRedirects);
       });
   }
 
-  showLayout() {
-    return this.show;
+  checkRoute(url: string) {
+    this.show = !url.startsWith('/auth');
   }
 }

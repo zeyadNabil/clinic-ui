@@ -1,5 +1,5 @@
 // src/app/authentication/login/login.component.ts
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -9,9 +9,12 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './login.html',
-  styleUrl: './login.css'
+  styleUrl: './login.css',
+  host: {
+    'style': 'display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden;'
+  }
 })
-export class Login {
+export class Login implements OnInit, OnDestroy {
   form: FormGroup;
   loading = false;
 
@@ -20,6 +23,18 @@ export class Login {
       username: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
+  }
+
+  ngOnInit() {
+    // Prevent body scroll when login page is active
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+  }
+
+  ngOnDestroy() {
+    // Restore body scroll when leaving login page
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
   }
 
   onSubmit() {

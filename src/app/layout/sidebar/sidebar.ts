@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-sidebar',
@@ -9,6 +9,8 @@ import { RouterModule } from '@angular/router';
   styleUrl: './sidebar.css',
 })
 export class Sidebar {
+  private router = inject(Router);
+
   navItems = [
     {
       label: 'Dashboard',
@@ -38,8 +40,7 @@ export class Sidebar {
   ];
 
   logout() {
-    // Implement logout logic here
-    console.log('Logging out...');
-    // You can add navigation to login page or call auth service
+    // Navigate to login page
+    this.router.navigate(['/auth/login']);
   }
 }

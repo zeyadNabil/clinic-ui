@@ -1,17 +1,33 @@
 .login-fullscreen-wrapper {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100vw;
   height: 100vh;
   height: 100dvh;
-  overflow: hidden;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden !important;
   background: #f8f9fa;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  z-index: 9999;
 }
 
 .login-container {
   width: 100%;
   height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
   display: flex;
+  margin: 0;
+  padding: 0;
+  overflow: hidden !important;
+  box-sizing: border-box;
 }
 
 .left-panel {
@@ -24,19 +40,29 @@
   justify-content: space-between;
   align-items: center;
   text-align: center;
-  overflow: hidden;
+  overflow: hidden !important;
+  min-height: 0;
+  max-height: 100vh;
+  max-height: 100dvh;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .left-panel h2 {
   font-size: 4.5rem;
   font-weight: 700;
   color: white;
+  margin: 0;
 }
 
 .login-illustration {
   max-width: 75%;
-  max-height: 50vh;
+  max-height: 40vh;
+  height: auto;
+  width: auto;
   object-fit: contain;
+  flex-shrink: 1;
+  display: block;
 }
 
 .left-panel h1 {
@@ -57,7 +83,14 @@
   align-items: center;
   justify-content: center;
   padding: 3rem;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  max-height: 100vh;
+  max-height: 100dvh;
+  height: 100%;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
 }
 
 .form-card {
@@ -91,30 +124,33 @@
 
 .form-label {
   color: var(--tertiary-color);
-  font-size: 1.4rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  margin-bottom: 0.5rem;
 }
 
 .form-control {
-  height: 54px;
-  border-radius: 0.8rem;
-  font-size: 1.4rem;
-  padding: 0 1rem;
+  height: 44px;
+  border-radius: 0.6rem;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  line-height: 1.5;
 }
 
 .input-group-text {
-  border-radius: 0 0.8rem 0.8rem 0;
+  border-radius: 0 0.6rem 0.6rem 0;
   background: #f8f9fa;
 }
 
 .btn-primary {
-  padding: 1.2rem 2rem;
-  font-size: 1.4rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
   font-weight: 500;
-  border-radius: 0.8rem;
+  border-radius: 0.6rem;
   background-color: var(--primary-color);
   border-color: var(--primary-color);
   transition: all 0.3s ease;
+  height: 44px;
 }
 
 .btn-primary:hover {
@@ -127,7 +163,7 @@
 .text-primary { color: var(--primary-color) !important; }
 .fw-bold { font-weight: 700 !important; }
 
-/* Validation styles – add at the bottom of login.component.css */
+/* Validation styles */
 .form-control.is-invalid,
 .input-group .form-control.is-invalid {
   border-color: #dc3545;
@@ -143,4 +179,166 @@
   font-size: 0.9rem;
   color: #dc3545;
   font-weight: 500;
+}
+
+/* Prevent body scroll when register page is active */
+:host {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden !important;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .login-container {
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+  }
+
+  .left-panel {
+    flex: 0 0 40vh;
+    padding: 2rem 1.5rem;
+    min-height: 0;
+    max-height: 40vh;
+    height: 40vh;
+  }
+
+  .left-panel h2 {
+    font-size: 2.5rem;
+  }
+
+  .left-panel h1 {
+    font-size: 3rem;
+    margin: 0.5rem 0;
+  }
+
+  .left-panel p {
+    font-size: 1.2rem;
+  }
+
+  .login-illustration {
+    max-width: 60%;
+    max-height: 25vh;
+    margin: 1rem 0;
+  }
+
+  .right-panel {
+    flex: 1;
+    padding: 2rem 1.5rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    max-height: 60vh;
+    height: 60vh;
+  }
+
+  .form-card {
+    padding: 2rem;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .form-card h2 {
+    font-size: 2rem;
+  }
+
+  .form-card .text-muted {
+    font-size: 1.1rem;
+  }
+
+  .form-label {
+    font-size: 0.85rem;
+  }
+
+  .form-control {
+    height: 42px;
+    font-size: 1rem;
+  }
+
+  .btn-primary {
+    height: 42px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .login-container {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+  }
+
+  .left-panel {
+    flex: 0 0 35vh;
+    padding: 1.5rem 1rem;
+    min-height: 0;
+    max-height: 35vh;
+    height: 35vh;
+  }
+
+  .left-panel h2 {
+    font-size: 2rem;
+  }
+
+  .left-panel h1 {
+    font-size: 2.2rem;
+    margin: 0.3rem 0;
+  }
+
+  .left-panel p {
+    font-size: 1rem;
+  }
+
+  .login-illustration {
+    max-width: 70%;
+    max-height: 20vh;
+    margin: 0.5rem 0;
+  }
+
+  .right-panel {
+    flex: 1;
+    padding: 1.5rem 1rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    max-height: 65vh;
+    height: 65vh;
+  }
+
+  .form-card {
+    padding: 1.5rem;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .form-card h2 {
+    font-size: 1.8rem;
+  }
+
+  .form-card .text-muted {
+    font-size: 1rem;
+  }
+
+  .form-label {
+    font-size: 0.8rem;
+  }
+
+  .form-control {
+    height: 40px;
+    font-size: 0.95rem;
+  }
+
+  .btn-primary {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.95rem;
+    height: 40px;
+  }
 }

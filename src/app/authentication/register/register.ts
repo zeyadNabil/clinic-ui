@@ -1,15 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './register.html',
-  styleUrl: './register.css'
+  styleUrl: './register.css',
+  host: {
+    'style': 'display: block; position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden;'
+  }
 })
-export class Register {
+export class Register implements OnInit, OnDestroy {
   form: FormGroup;
   loading = false;
   passwordMismatch = false;
@@ -29,6 +33,18 @@ export class Register {
       this.passwordMismatch =
         this.form.get('password')?.value !== this.form.get('confirmPassword')?.value;
     });
+  }
+
+  ngOnInit() {
+    // Prevent body scroll when register page is active
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+  }
+
+  ngOnDestroy() {
+    // Restore body scroll when leaving register page
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
   }
 
   onSubmit() {

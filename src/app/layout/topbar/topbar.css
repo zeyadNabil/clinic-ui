@@ -11,6 +11,7 @@
   justify-content: space-between;
   padding: 0 3rem;
   z-index: 999;
+  transition: left 0.3s ease;
 }
 
 /* Burger Menu (Mobile Only) */
