@@ -8,8 +8,9 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     loadComponent: () => import('./home/dashboard/dashboard').then(c => c.Dashboard)
-    
   },
-  { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
-  { path: '**', redirectTo: '/auth/login' }
+  // Default route now goes to dashboard
+  { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
+  // Wildcard route stays as a fallback
+  { path: '**', redirectTo: '/dashboard' }
 ];
