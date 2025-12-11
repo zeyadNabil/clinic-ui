@@ -1,0 +1,310 @@
+<div class="appointments-container">
+  <div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1>Appointments</h1>
+        <p class="text-muted">Manage and schedule patient appointments</p>
+      </div>
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <i class="fas fa-plus me-2"></i>New Appointment
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon dashboard">
+          <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.total }}</h3>
+          <p>Total Appointments</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon appointments">
+          <i class="fas fa-calendar-day"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.today }}</h3>
+          <p>Today's Appointments</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon pending">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.pending }}</h3>
+          <p>Pending</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon completed">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.completed }}</h3>
+          <p>Completed</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters and Search -->
+  <div class="row g-4 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label class="form-label">
+                  <i class="fas fa-search me-2"></i>Search
+                </label>
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Search by patient, doctor, or type..."
+                  [(ngModel)]="searchTerm">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label class="form-label">
+                  <i class="fas fa-filter me-2"></i>Status
+                </label>
+                <select class="form-select" [(ngModel)]="statusFilter">
+                  <option value="all">All Status</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label class="form-label">
+                  <i class="fas fa-calendar me-2"></i>Date Range
+                </label>
+                <select class="form-select" [(ngModel)]="dateFilter">
+                  <option value="all">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button
+                class="btn btn-outline-secondary w-100"
+                (click)="searchTerm = ''; statusFilter = 'all'; dateFilter = 'all'">
+                <i class="fas fa-redo me-2"></i>Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appointments Table -->
+  <div class="row g-4 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5>Appointments List</h5>
+            <span class="text-muted">{{ filteredAppointments.length }} appointment(s) found</span>
+          </div>
+        </div>
+        <div class="card-body">
+          @if (filteredAppointments.length === 0) {
+            <div class="empty-state">
+              <i class="fas fa-calendar-times"></i>
+              <h4>No appointments found</h4>
+              <p>Try adjusting your filters or create a new appointment</p>
+            </div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (appointment of filteredAppointments; track appointment.id) {
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <div class="patient-avatar">{{ appointment.patientInitials }}</div>
+                          <div class="ms-2">
+                            <div class="fw-bold">{{ appointment.patientName }}</div>
+                            <div class="text-muted small">{{ appointment.phone }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{{ appointment.doctor }}</td>
+                      <td>
+                        <div>{{ appointment.date }}</div>
+                      </td>
+                      <td>{{ appointment.time }}</td>
+                      <td>{{ appointment.type }}</td>
+                      <td>
+                        <span class="badge" [ngClass]="getStatusBadgeClass(appointment.status)">
+                          {{ getStatusText(appointment.status) }}
+                        </span>
+                      </td>
+                      <td>
+                        <div class="action-buttons">
+                          <button
+                            class="btn btn-sm btn-outline-primary"
+                            (click)="openEditModal(appointment)"
+                            title="Edit">
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button
+                            class="btn btn-sm btn-outline-danger"
+                            (click)="deleteAppointment(appointment)"
+                            title="Delete">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Appointment Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          {{ modalMode === 'create' ? 'Create New Appointment' : 'Edit Appointment' }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Patient Name *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="formData.patientName"
+                name="patientName"
+                required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Doctor *</label>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="formData.doctor"
+                name="doctor"
+                required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Date *</label>
+              <input
+                type="date"
+                class="form-control"
+                [(ngModel)]="formData.date"
+                name="date"
+                required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Time *</label>
+              <input
+                type="time"
+                class="form-control"
+                [(ngModel)]="formData.time"
+                name="time"
+                required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Type *</label>
+              <select
+                class="form-select"
+                [(ngModel)]="formData.type"
+                name="type"
+                required>
+                <option value="">Select Type</option>
+                <option value="Checkup">Checkup</option>
+                <option value="Consultation">Consultation</option>
+                <option value="Treatment">Treatment</option>
+                <option value="Follow-up">Follow-up</option>
+                <option value="Emergency">Emergency</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Status *</label>
+              <select
+                class="form-select"
+                [(ngModel)]="formData.status"
+                name="status"
+                required>
+                <option value="scheduled">Scheduled</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone</label>
+              <input
+                type="tel"
+                class="form-control"
+                [(ngModel)]="formData.phone"
+                name="phone">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input
+                type="email"
+                class="form-control"
+                [(ngModel)]="formData.email"
+                name="email">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="saveAppointment()">
+          {{ modalMode === 'create' ? 'Create' : 'Update' }} Appointment
+        </button>
+      </div>
+    </div>
+  </div>
+}
+

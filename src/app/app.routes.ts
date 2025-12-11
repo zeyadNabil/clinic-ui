@@ -8,7 +8,10 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     loadComponent: () => import('./home/dashboard/dashboard').then(c => c.Dashboard)
-    
+  },
+  {
+    path: 'appointments',
+    loadComponent: () => import('./home/appointments/appointments').then(c => c.Appointments)
   },
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
   { path: '**', redirectTo: '/auth/login' }
