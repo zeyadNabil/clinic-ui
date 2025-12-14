@@ -5,9 +5,11 @@
         <h1>Appointments</h1>
         <p class="text-muted">Manage and schedule patient appointments</p>
       </div>
-      <button class="btn btn-primary" (click)="openCreateModal()">
-        <i class="fas fa-plus me-2"></i>New Appointment
-      </button>
+      @if (user.role === 'patient' || user.role === 'admin') {
+        <button class="btn btn-primary" (click)="openCreateModal()">
+          <i class="fas fa-plus me-2"></i>New Appointment
+        </button>
+      }
     </div>
   </div>
 
@@ -87,10 +89,12 @@
                 </label>
                 <select class="form-select" [(ngModel)]="statusFilter">
                   <option value="all">All Status</option>
+                  <option value="pending_approval">Pending Approval</option>
+                  <option value="accepted">Accepted</option>
                   <option value="scheduled">Scheduled</option>
-                  <option value="pending">Pending</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
+                  <option value="denied">Denied</option>
                 </select>
               </div>
             </div>
@@ -142,28 +146,39 @@
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Patient</th>
-                    <th>Doctor</th>
+                    @if (user.role !== 'patient') {
+                      <th>Patient</th>
+                    }
+                    @if (user.role !== 'doctor') {
+                      <th>Doctor</th>
+                    }
                     <th>Date</th>
                     <th>Time</th>
                     <th>Type</th>
                     <th>Status</th>
+                    @if (user.role === 'admin') {
+                      <th>Message</th>
+                    }
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (appointment of filteredAppointments; track appointment.id) {
                     <tr>
-                      <td>
-                        <div class="d-flex align-items-center">
-                          <div class="patient-avatar">{{ appointment.patientInitials }}</div>
-                          <div class="ms-2">
-                            <div class="fw-bold">{{ appointment.patientName }}</div>
-                            <div class="text-muted small">{{ appointment.phone }}</div>
+                      @if (user.role !== 'patient') {
+                        <td>
+                          <div class="d-flex align-items-center">
+                            <div class="patient-avatar">{{ appointment.patientInitials }}</div>
+                            <div class="ms-2">
+                              <div class="fw-bold">{{ appointment.patientName }}</div>
+                              <div class="text-muted small">{{ appointment.phone }}</div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>{{ appointment.doctor }}</td>
+                        </td>
+                      }
+                      @if (user.role !== 'doctor') {
+                        <td>{{ appointment.doctor }}</td>
+                      }
                       <td>
                         <div>{{ appointment.date }}</div>
                       </td>
@@ -174,20 +189,71 @@
                           {{ getStatusText(appointment.status) }}
                         </span>
                       </td>
+                      @if (user.role === 'admin' && appointment.cancellationMessage) {
+                        <td>
+                          <button
+                            class="btn btn-sm btn-outline-info"
+                            (click)="openMessageModal(appointment)"
+                            title="View Cancellation Message">
+                            <i class="fas fa-comment-alt"></i>
+                          </button>
+                        </td>
+                      }
                       <td>
                         <div class="action-buttons">
-                          <button
-                            class="btn btn-sm btn-outline-primary"
-                            (click)="openEditModal(appointment)"
-                            title="Edit">
-                            <i class="fas fa-edit"></i>
-                          </button>
-                          <button
-                            class="btn btn-sm btn-outline-danger"
-                            (click)="deleteAppointment(appointment)"
-                            title="Delete">
-                            <i class="fas fa-trash"></i>
-                          </button>
+                          <!-- Admin Actions -->
+                          @if (user.role === 'admin') {
+                            @if (appointment.status === 'pending_approval') {
+                              <button
+                                class="btn btn-sm btn-success"
+                                (click)="acceptAppointment(appointment)"
+                                title="Accept">
+                                <i class="fas fa-check"></i>
+                              </button>
+                              <button
+                                class="btn btn-sm btn-danger"
+                                (click)="denyAppointment(appointment)"
+                                title="Deny">
+                                <i class="fas fa-times"></i>
+                              </button>
+                            }
+                            <button
+                              class="btn btn-sm btn-outline-danger"
+                              (click)="deleteAppointment(appointment)"
+                              title="Delete">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          }
+
+                          <!-- Doctor Actions -->
+                          @if (user.role === 'doctor') {
+                            @if (canCancelAppointment(appointment)) {
+                              <button
+                                class="btn btn-sm btn-outline-danger"
+                                (click)="openCancelModal(appointment)"
+                                title="Cancel Appointment">
+                                <i class="fas fa-ban"></i>
+                              </button>
+                            }
+                          }
+
+                          <!-- Patient Actions -->
+                          @if (user.role === 'patient') {
+                            <button
+                              class="btn btn-sm btn-outline-primary"
+                              [disabled]="!canEditAppointment(appointment)"
+                              (click)="openEditModal(appointment)"
+                              [title]="canEditAppointment(appointment) ? 'Edit Appointment' : 'Cannot edit - appointment time has passed or is not editable'">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button
+                              class="btn btn-sm btn-outline-danger"
+                              [disabled]="!canCancelAppointment(appointment)"
+                              (click)="openCancelModal(appointment)"
+                              [title]="canCancelAppointment(appointment) ? 'Cancel Appointment' : 'Cannot cancel - appointment time has passed or is not cancellable'">
+                              <i class="fas fa-times"></i>
+                            </button>
+                          }
                         </div>
                       </td>
                     </tr>
@@ -222,16 +288,23 @@
                 class="form-control"
                 [(ngModel)]="formData.patientName"
                 name="patientName"
+                [readonly]="user.role === 'patient'"
+                [disabled]="user.role === 'patient'"
+                [placeholder]="user.role === 'patient' ? user.name : 'Enter patient name'"
                 required>
             </div>
             <div class="col-md-6">
               <label class="form-label">Doctor *</label>
-              <input
-                type="text"
-                class="form-control"
+              <select
+                class="form-select"
                 [(ngModel)]="formData.doctor"
                 name="doctor"
                 required>
+                <option value="">Select Doctor</option>
+                @for (doctor of doctors; track doctor) {
+                  <option [value]="doctor">{{ doctor }}</option>
+                }
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label">Date *</label>
@@ -266,19 +339,23 @@
                 <option value="Emergency">Emergency</option>
               </select>
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Status *</label>
-              <select
-                class="form-select"
-                [(ngModel)]="formData.status"
-                name="status"
-                required>
-                <option value="scheduled">Scheduled</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
+            @if (user.role === 'admin') {
+              <div class="col-md-6">
+                <label class="form-label">Status *</label>
+                <select
+                  class="form-select"
+                  [(ngModel)]="formData.status"
+                  name="status"
+                  required>
+                  <option value="pending_approval">Pending Approval</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="denied">Denied</option>
+                </select>
+              </div>
+            }
             <div class="col-md-6">
               <label class="form-label">Phone</label>
               <input
@@ -303,6 +380,79 @@
         <button type="button" class="btn btn-primary" (click)="saveAppointment()">
           {{ modalMode === 'create' ? 'Create' : 'Update' }} Appointment
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Cancel Appointment Modal -->
+@if (showCancelModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5 class="modal-title">Cancel Appointment</h5>
+        <button type="button" class="btn-close" (click)="closeModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        @if (cancellingAppointment) {
+          <div class="mb-3">
+            <p><strong>Patient:</strong> {{ cancellingAppointment.patientName }}</p>
+            <p><strong>Date:</strong> {{ cancellingAppointment.date }}</p>
+            <p><strong>Time:</strong> {{ cancellingAppointment.time }}</p>
+          </div>
+        }
+        <div class="form-group">
+          <label class="form-label">
+            @if (user.role === 'doctor') {
+              Reason for Cancellation (This message will be sent to admin for review) *
+            } @else {
+              Reason for Cancellation *
+            }
+          </label>
+          <textarea
+            class="form-control"
+            rows="4"
+            placeholder="Please provide a reason for cancelling this appointment..."
+            [(ngModel)]="cancellationForm.message"
+            name="cancellationMessage"
+            required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-danger" (click)="confirmCancelAppointment()">
+          Confirm Cancellation
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- View Cancellation Message Modal (Admin) -->
+@if (showMessageModal && viewingMessageAppointment) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5 class="modal-title">Cancellation Message</h5>
+        <button type="button" class="btn-close" (click)="closeModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <p><strong>Patient:</strong> {{ viewingMessageAppointment.patientName }}</p>
+          <p><strong>Doctor:</strong> {{ viewingMessageAppointment.doctor }}</p>
+          <p><strong>Date:</strong> {{ viewingMessageAppointment.date }}</p>
+          <p><strong>Time:</strong> {{ viewingMessageAppointment.time }}</p>
+          <p><strong>Cancelled By:</strong> {{ viewingMessageAppointment.cancelledBy === 'doctor' ? 'Doctor' : 'Patient' }}</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><strong>Cancellation Reason:</strong></label>
+          <div class="message-box">
+            {{ viewingMessageAppointment.cancellationMessage }}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" (click)="closeModal()">Close</button>
       </div>
     </div>
   </div>
