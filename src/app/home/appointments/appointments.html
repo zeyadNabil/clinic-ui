@@ -5,7 +5,7 @@
         <h1>Appointments</h1>
         <p class="text-muted">Manage and schedule patient appointments</p>
       </div>
-      @if (user.role === 'patient' || user.role === 'admin') {
+      @if (user && (user.role === 'patient' || user.role === 'admin')) {
         <button class="btn btn-primary" (click)="openCreateModal()">
           <i class="fas fa-plus me-2"></i>New Appointment
         </button>
@@ -146,17 +146,17 @@
               <table class="table">
                 <thead>
                   <tr>
-                    @if (user.role !== 'patient') {
+                    @if (user && user.role !== 'patient') {
                       <th>Patient</th>
                     }
-                    @if (user.role !== 'doctor') {
+                    @if (user && user.role !== 'doctor') {
                       <th>Doctor</th>
                     }
                     <th>Date</th>
                     <th>Time</th>
                     <th>Type</th>
                     <th>Status</th>
-                    @if (user.role === 'admin') {
+                    @if (user && user.role === 'admin') {
                       <th>Message</th>
                     }
                     <th>Actions</th>
@@ -165,7 +165,7 @@
                 <tbody>
                   @for (appointment of filteredAppointments; track appointment.id) {
                     <tr>
-                      @if (user.role !== 'patient') {
+                      @if (user && user.role !== 'patient') {
                         <td>
                           <div class="d-flex align-items-center">
                             <div class="patient-avatar">{{ appointment.patientInitials }}</div>
@@ -176,7 +176,7 @@
                           </div>
                         </td>
                       }
-                      @if (user.role !== 'doctor') {
+                      @if (user && user.role !== 'doctor') {
                         <td>{{ appointment.doctor }}</td>
                       }
                       <td>
@@ -189,7 +189,7 @@
                           {{ getStatusText(appointment.status) }}
                         </span>
                       </td>
-                      @if (user.role === 'admin' && appointment.cancellationMessage) {
+                      @if (user && user.role === 'admin' && appointment.cancellationMessage) {
                         <td>
                           <button
                             class="btn btn-sm btn-outline-info"
@@ -202,7 +202,7 @@
                       <td>
                         <div class="action-buttons">
                           <!-- Admin Actions -->
-                          @if (user.role === 'admin') {
+                          @if (user && user.role === 'admin') {
                             @if (appointment.status === 'pending_approval') {
                               <button
                                 class="btn btn-sm btn-success"
@@ -226,7 +226,7 @@
                           }
 
                           <!-- Doctor Actions -->
-                          @if (user.role === 'doctor') {
+                          @if (user && user.role === 'doctor') {
                             @if (canCancelAppointment(appointment)) {
                               <button
                                 class="btn btn-sm btn-outline-danger"
@@ -238,7 +238,7 @@
                           }
 
                           <!-- Patient Actions -->
-                          @if (user.role === 'patient') {
+                          @if (user && user.role === 'patient') {
                             <button
                               class="btn btn-sm btn-outline-primary"
                               [disabled]="!canEditAppointment(appointment)"
@@ -288,9 +288,9 @@
                 class="form-control"
                 [(ngModel)]="formData.patientName"
                 name="patientName"
-                [readonly]="user.role === 'patient'"
-                [disabled]="user.role === 'patient'"
-                [placeholder]="user.role === 'patient' ? user.name : 'Enter patient name'"
+                [readonly]="user ? user.role === 'patient' : false"
+                [disabled]="user ? user.role === 'patient' : false"
+                [placeholder]="user && user.role === 'patient' ? (user.name || 'Enter patient name') : 'Enter patient name'"
                 required>
             </div>
             <div class="col-md-6">
@@ -339,7 +339,7 @@
                 <option value="Emergency">Emergency</option>
               </select>
             </div>
-            @if (user.role === 'admin') {
+                          @if (user && user.role === 'admin') {
               <div class="col-md-6">
                 <label class="form-label">Status *</label>
                 <select
@@ -403,7 +403,7 @@
         }
         <div class="form-group">
           <label class="form-label">
-            @if (user.role === 'doctor') {
+            @if (user && user.role === 'doctor') {
               Reason for Cancellation (This message will be sent to admin for review) *
             } @else {
               Reason for Cancellation *

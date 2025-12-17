@@ -4,7 +4,7 @@
   </div>
 
   <!-- Admin View -->
-  @if (user.role === 'admin') {
+  @if (user && user.role === 'admin') {
     <div class="row g-4">
       <!-- Admin Stats Cards -->
       <div class="col-md-6 col-lg-3">
@@ -147,7 +147,7 @@
   }
 
   <!-- Doctor View -->
-  @if (user.role === 'doctor') {
+  @if (user && user.role === 'doctor') {
     <div class="row g-4">
       <!-- Doctor Stats Cards -->
       <div class="col-md-6 col-lg-3">
@@ -251,6 +251,131 @@
               </button>
               <button class="btn btn-outline-primary">
                 <i class="fas fa-file-medical me-2"></i> Write a Prescription
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Patient View -->
+  @if (user && user.role === 'patient') {
+    <div class="row g-4">
+      <!-- Patient Stats Cards -->
+      <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+          <div class="stat-icon dashboard">
+            <i class="fas fa-calendar-check"></i>
+          </div>
+          <div class="stat-content">
+            <h3>5</h3>
+            <p>My Appointments</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+          <div class="stat-icon payments">
+            <i class="fas fa-dollar-sign"></i>
+          </div>
+          <div class="stat-content">
+            <h3>$450</h3>
+            <p>Total Spent</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+          <div class="stat-icon completed">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-content">
+            <h3>3</h3>
+            <p>Completed</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+          <div class="stat-icon pending">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="stat-content">
+            <h3>2</h3>
+            <p>Upcoming</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mt-3">
+      <!-- My Appointments -->
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header">
+            <h5>My Appointments</h5>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Doctor</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Dr. Smith</td>
+                    <td>2024-12-20</td>
+                    <td>09:00 AM</td>
+                    <td>Checkup</td>
+                    <td><span class="badge bg-success">Completed</span></td>
+                  </tr>
+                  <tr>
+                    <td>Dr. Johnson</td>
+                    <td>2024-12-21</td>
+                    <td>10:30 AM</td>
+                    <td>Consultation</td>
+                    <td><span class="badge bg-warning">Pending</span></td>
+                  </tr>
+                  <tr>
+                    <td>Dr. Williams</td>
+                    <td>2024-12-22</td>
+                    <td>02:00 PM</td>
+                    <td>Treatment</td>
+                    <td><span class="badge bg-info">Scheduled</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Patient Quick Actions -->
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-header">
+            <h5>Quick Actions</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <button class="btn btn-primary">
+                <i class="fas fa-calendar-plus me-2"></i> Book Appointment
+              </button>
+              <button class="btn btn-outline-primary">
+                <i class="fas fa-calendar-alt me-2"></i> View My Appointments
+              </button>
+              <button class="btn btn-outline-primary">
+                <i class="fas fa-dollar-sign me-2"></i> Make Payment
               </button>
             </div>
           </div>

@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { UserService } from '../../services/user.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-topbar',
@@ -8,14 +10,15 @@ import { RouterModule } from '@angular/router';
   templateUrl: './topbar.html',
   styleUrl: './topbar.css',
 })
-export class Topbar {
+export class Topbar implements OnInit, OnDestroy {
   userProfile = {
-    name: 'Dr. Mark James',
-    role: 'Dentist',
+    name: '',
+    role: '',
     avatar: ''
   };
 
   notificationCount: number = 5;
+  private subscriptions = new Subscription();
 
   notifications = [
     {
@@ -49,4 +52,24 @@ export class Topbar {
       icon: 'fas fa-calendar-times'
     }
   ];
+
+  constructor(private userService: UserService) {}
+
+  ngOnInit() {
+    // Subscribe to user changes
+    const userSub = this.userService.currentUser$.subscribe(user => {
+      this.userProfile.name = this.userService.getDisplayName();
+      this.userProfile.role = this.userService.getRoleDisplayText();
+    });
+    this.subscriptions.add(userSub);
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.unsubscribe();
+  }
+
+  // Switch user role (for testing)
+  switchRole(role: 'admin' | 'doctor' | 'patient') {
+    this.userService.setUserRole(role);
+  }
 }

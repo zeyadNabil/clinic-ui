@@ -1,6 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AppointmentService, Appointment } from '../../services/appointment.service';
+import { UserService, User } from '../../services/user.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-appointments',
@@ -8,12 +11,8 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './appointments.html',
   styleUrl: './appointments.css',
 })
-export class Appointments {
-  user = {
-    role: 'admin', // Can be 'admin', 'doctor', or 'patient'
-    name: 'John Doe', // Current user name
-    doctorName: 'Dr. Smith' // For doctor role
-  };
+export class Appointments implements OnInit, OnDestroy {
+  user: User | null = null;
 
   // Static list of doctors (will be replaced with backend data later)
   doctors = [
@@ -43,100 +42,42 @@ export class Appointments {
   dateFilter = 'all'; // 'all', 'today', 'week', 'month'
 
   // Appointments data
-  appointments = [
-    {
-      id: 1,
-      patientName: 'John Doe',
-      patientInitials: 'JD',
-      doctor: 'Dr. Smith',
-      date: '2024-12-20',
-      time: '09:00 AM',
-      type: 'Checkup',
-      status: 'pending_approval',
-      phone: '+1 234-567-8900',
-      email: 'john.doe@email.com',
-      cancellationMessage: '',
-      cancelledBy: ''
-    },
-    {
-      id: 2,
-      patientName: 'Sarah Miller',
-      patientInitials: 'SM',
-      doctor: 'Dr. Johnson',
-      date: '2024-12-21',
-      time: '10:30 AM',
-      type: 'Consultation',
-      status: 'accepted',
-      phone: '+1 234-567-8901',
-      email: 'sarah.miller@email.com',
-      cancellationMessage: '',
-      cancelledBy: ''
-    },
-    {
-      id: 3,
-      patientName: 'Robert Johnson',
-      patientInitials: 'RJ',
-      doctor: 'Dr. Williams',
-      date: '2024-12-22',
-      time: '02:00 PM',
-      type: 'Treatment',
-      status: 'scheduled',
-      phone: '+1 234-567-8902',
-      email: 'robert.johnson@email.com',
-      cancellationMessage: '',
-      cancelledBy: ''
-    },
-    {
-      id: 4,
-      patientName: 'Emily Davis',
-      patientInitials: 'ED',
-      doctor: 'Dr. Brown',
-      date: '2024-12-23',
-      time: '11:00 AM',
-      type: 'Follow-up',
-      status: 'accepted',
-      phone: '+1 234-567-8903',
-      email: 'emily.davis@email.com',
-      cancellationMessage: '',
-      cancelledBy: ''
-    },
-    {
-      id: 5,
-      patientName: 'Michael Wilson',
-      patientInitials: 'MW',
-      doctor: 'Dr. Smith',
-      date: '2024-12-24',
-      time: '03:30 PM',
-      type: 'Checkup',
-      status: 'pending_approval',
-      phone: '+1 234-567-8904',
-      email: 'michael.wilson@email.com',
-      cancellationMessage: '',
-      cancelledBy: ''
-    },
-    {
-      id: 6,
-      patientName: 'Lisa Anderson',
-      patientInitials: 'LA',
-      doctor: 'Dr. Johnson',
-      date: '2024-12-25',
-      time: '09:30 AM',
-      type: 'Consultation',
-      status: 'scheduled',
-      phone: '+1 234-567-8905',
-      email: 'lisa.anderson@email.com',
-      cancellationMessage: 'Emergency case came up',
-      cancelledBy: 'doctor'
-    }
-  ];
+  appointments: Appointment[] = [];
+  private subscriptions = new Subscription();
+
+  constructor(
+    private appointmentService: AppointmentService,
+    private userService: UserService
+  ) {}
+
+  ngOnInit() {
+    // Subscribe to user
+    const userSub = this.userService.currentUser$.subscribe(user => {
+      this.user = user;
+      this.updateStats();
+    });
+    this.subscriptions.add(userSub);
+
+    // Subscribe to appointments
+    const appointmentsSub = this.appointmentService.appointments$.subscribe(appointments => {
+      this.appointments = appointments;
+      this.updateStats();
+    });
+    this.subscriptions.add(appointmentsSub);
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.unsubscribe();
+  }
+
 
   // Modal state
   showModal = false;
   showCancelModal = false;
   showMessageModal = false;
-  editingAppointment: any = null;
-  cancellingAppointment: any = null;
-  viewingMessageAppointment: any = null;
+  editingAppointment: Appointment | null = null;
+  cancellingAppointment: Appointment | null = null;
+  viewingMessageAppointment: Appointment | null = null;
   modalMode = 'create'; // 'create' or 'edit'
 
   // Form data for modal
@@ -156,9 +97,6 @@ export class Appointments {
     message: ''
   };
 
-  constructor() {
-    this.updateStats();
-  }
 
   // Update stats based on appointments
   updateStats() {
@@ -171,15 +109,17 @@ export class Appointments {
 
   // Get filtered appointments based on role
   get filteredAppointments() {
+    if (!this.user) return [];
+    
     let filtered = [...this.appointments];
 
     // Role-based filtering
-    if (this.user.role === 'doctor') {
+    if (this.user?.role === 'doctor') {
       // Doctors only see their own appointments
-      filtered = filtered.filter(apt => apt.doctor === this.user.doctorName);
-    } else if (this.user.role === 'patient') {
+      filtered = filtered.filter(apt => apt.doctor === this.user?.doctorName);
+    } else if (this.user?.role === 'patient') {
       // Patients only see their own appointments
-      filtered = filtered.filter(apt => apt.patientName === this.user.name);
+      filtered = filtered.filter(apt => apt.patientName === this.user?.name);
     }
     // Admin sees all appointments
 
@@ -252,7 +192,7 @@ export class Appointments {
   }
 
   // Check if appointment time has passed
-  isAppointmentTimePassed(appointment: any): boolean {
+  isAppointmentTimePassed(appointment: Appointment): boolean {
     const now = new Date();
     const aptDate = new Date(appointment.date);
     const [time, modifier] = appointment.time.split(' ');
@@ -271,13 +211,15 @@ export class Appointments {
   }
 
   // Check if appointment is today (for doctor cancellation restriction)
-  isAppointmentToday(appointment: any): boolean {
+  isAppointmentToday(appointment: Appointment): boolean {
     const today = new Date().toISOString().split('T')[0];
     return appointment.date === today;
   }
 
   // Check if user can cancel appointment
-  canCancelAppointment(appointment: any): boolean {
+  canCancelAppointment(appointment: Appointment): boolean {
+    if (!this.user) return false;
+    
     if (this.user.role === 'doctor') {
       // Doctor cannot cancel on the same day
       return !this.isAppointmentToday(appointment) &&
@@ -294,7 +236,9 @@ export class Appointments {
   }
 
   // Check if user can edit appointment
-  canEditAppointment(appointment: any): boolean {
+  canEditAppointment(appointment: Appointment): boolean {
+    if (!this.user) return false;
+    
     if (this.user.role === 'patient') {
       // Patient cannot edit if time has passed or if denied/cancelled/completed
       return !this.isAppointmentTimePassed(appointment) &&
@@ -307,6 +251,8 @@ export class Appointments {
 
   // Open create modal
   openCreateModal() {
+    if (!this.user) return;
+    
     this.modalMode = 'create';
     this.editingAppointment = null;
     this.formData = {
@@ -347,7 +293,9 @@ export class Appointments {
   }
 
   // Open edit modal
-  openEditModal(appointment: any) {
+  openEditModal(appointment: Appointment) {
+    if (!this.user) return;
+    
     // Check if user can edit
     if (this.user.role === 'patient' && !this.canEditAppointment(appointment)) {
       if (this.isAppointmentTimePassed(appointment)) {
@@ -358,6 +306,8 @@ export class Appointments {
       return;
     }
 
+    if (!this.user) return;
+    
     this.modalMode = 'edit';
     this.editingAppointment = appointment;
     this.formData = {
@@ -385,7 +335,9 @@ export class Appointments {
   }
 
   // Open cancel modal
-  openCancelModal(appointment: any) {
+  openCancelModal(appointment: Appointment) {
+    if (!this.user) return;
+    
     if (!this.canCancelAppointment(appointment)) {
       if (this.user.role === 'doctor' && this.isAppointmentToday(appointment)) {
         alert('You cannot cancel appointments on the same day.');
@@ -400,28 +352,20 @@ export class Appointments {
   }
 
   // Open message view modal (for admin to see doctor cancellation messages)
-  openMessageModal(appointment: any) {
+  openMessageModal(appointment: Appointment) {
     this.viewingMessageAppointment = appointment;
     this.showMessageModal = true;
   }
 
   // Accept appointment (Admin only)
-  acceptAppointment(appointment: any) {
-    const index = this.appointments.findIndex(apt => apt.id === appointment.id);
-    if (index !== -1) {
-      this.appointments[index].status = 'accepted';
-      this.updateStats();
-    }
+  acceptAppointment(appointment: Appointment) {
+    this.appointmentService.updateAppointment(appointment.id, { status: 'accepted' });
   }
 
   // Deny appointment (Admin only)
-  denyAppointment(appointment: any) {
+  denyAppointment(appointment: Appointment) {
     if (confirm(`Are you sure you want to deny the appointment for ${appointment.patientName}?`)) {
-      const index = this.appointments.findIndex(apt => apt.id === appointment.id);
-      if (index !== -1) {
-        this.appointments[index].status = 'denied';
-        this.updateStats();
-      }
+      this.appointmentService.updateAppointment(appointment.id, { status: 'denied' });
     }
   }
 
@@ -439,21 +383,18 @@ export class Appointments {
         .toUpperCase();
 
       const newAppointment = {
-        id: this.appointments.length + 1,
         patientName: this.formData.patientName,
         patientInitials: initials,
         doctor: this.formData.doctor,
         date: this.formData.date,
         time: displayTime,
         type: this.formData.type,
-        status: 'pending_approval', // Always pending approval for new appointments
+        status: 'pending_approval' as const,
         phone: this.formData.phone,
         email: this.formData.email,
-        cancellationMessage: '',
-        cancelledBy: ''
+        amount: 150 // Default amount, can be made configurable
       };
-      this.appointments.push(newAppointment);
-      this.updateStats();
+      this.appointmentService.addAppointment(newAppointment);
     } else if (this.modalMode === 'edit' && this.editingAppointment) {
       // Update existing appointment (only for patients)
       if (!this.canEditAppointment(this.editingAppointment)) {
@@ -461,56 +402,50 @@ export class Appointments {
         return;
       }
 
-      const index = this.appointments.findIndex(apt => apt.id === this.editingAppointment.id);
-      if (index !== -1) {
-        // For patients, ensure patient name is always their own name
-        const patientName = this.user.role === 'patient' ? this.user.name : this.formData.patientName;
+      if (!this.user) return;
+      
+      // For patients, ensure patient name is always their own name
+      const patientName = this.user.role === 'patient' ? this.user.name : this.formData.patientName;
+      const initials = patientName.split(' ').map(n => n[0]).join('').toUpperCase();
 
-        this.appointments[index] = {
-          ...this.appointments[index],
-          patientName: patientName,
-          patientInitials: patientName.split(' ').map(n => n[0]).join('').toUpperCase(),
-          doctor: this.formData.doctor,
-          date: this.formData.date,
-          time: displayTime,
-          type: this.formData.type,
-          status: 'pending_approval', // Changes need re-approval
-          phone: this.formData.phone,
-          email: this.formData.email
-        };
-        this.updateStats();
-      }
+      this.appointmentService.updateAppointment(this.editingAppointment.id, {
+        patientName: patientName,
+        patientInitials: initials,
+        doctor: this.formData.doctor,
+        date: this.formData.date,
+        time: displayTime,
+        type: this.formData.type,
+        status: 'pending_approval', // Changes need re-approval
+        phone: this.formData.phone,
+        email: this.formData.email
+      });
     }
     this.closeModal();
   }
 
   // Cancel appointment with message
   confirmCancelAppointment() {
+    if (!this.user) return;
+    
     if (!this.cancellationForm.message.trim()) {
       alert('Please provide a reason for cancellation.');
       return;
     }
 
     if (this.cancellingAppointment) {
-      const index = this.appointments.findIndex(apt => apt.id === this.cancellingAppointment.id);
-      if (index !== -1) {
-        this.appointments[index].status = 'cancelled';
-        this.appointments[index].cancellationMessage = this.cancellationForm.message;
-        this.appointments[index].cancelledBy = this.user.role;
-        this.updateStats();
-      }
+      this.appointmentService.updateAppointment(this.cancellingAppointment.id, {
+        status: 'cancelled',
+        cancellationMessage: this.cancellationForm.message,
+        cancelledBy: this.user.role
+      });
     }
     this.closeModal();
   }
 
   // Delete appointment (Admin only - permanent delete)
-  deleteAppointment(appointment: any) {
+  deleteAppointment(appointment: Appointment) {
     if (confirm(`Are you sure you want to permanently delete the appointment for ${appointment.patientName}?`)) {
-      const index = this.appointments.findIndex(apt => apt.id === appointment.id);
-      if (index !== -1) {
-        this.appointments.splice(index, 1);
-        this.updateStats();
-      }
+      this.appointmentService.deleteAppointment(appointment.id);
     }
   }
 }

@@ -94,6 +94,25 @@
             <i class="fas fa-key"></i> Change Password
           </a>
         </li>
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">
+          <small>Switch Role (Testing)</small>
+        </li>
+        <li>
+          <a class="dropdown-item" href="javascript:void(0)" (click)="switchRole('admin')">
+            <i class="fas fa-user-shield"></i> Switch to Admin
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="javascript:void(0)" (click)="switchRole('doctor')">
+            <i class="fas fa-user-md"></i> Switch to Doctor
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="javascript:void(0)" (click)="switchRole('patient')">
+            <i class="fas fa-user"></i> Switch to Patient
+          </a>
+        </li>
       </ul>
     </div>
   </div>
