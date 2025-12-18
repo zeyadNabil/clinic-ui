@@ -13,6 +13,10 @@ export const routes: Routes = [
     path: 'appointments',
     loadComponent: () => import('./home/appointments/appointments').then(c => c.Appointments)
   },
+  {
+    path: 'payments',
+    loadComponent: () => import('./home/payments/payments').then(c => c.PaymentsComponent)
+  },
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
   { path: '**', redirectTo: '/auth/login' }
 ];
