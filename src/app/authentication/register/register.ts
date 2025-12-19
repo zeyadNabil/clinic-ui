@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-register',
@@ -17,10 +18,13 @@ export class Register implements OnInit, OnDestroy {
   form: FormGroup;
   loading = false;
   passwordMismatch = false;
+  errorMessage = '';
+  successMessage = '';
 
   constructor(
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) {
     this.form = this.fb.group({
       username: ['', [Validators.required, Validators.minLength(3)]],
@@ -54,13 +58,38 @@ export class Register implements OnInit, OnDestroy {
     }
 
     this.loading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
 
-    setTimeout(() => {
-      alert('Account created successfully! Welcome to CLINIC');
-      this.loading = false;
-      this.form.reset();
-      this.router.navigate(['/dashboard']);
-    }, 1500);
+    const userData = {
+      username: this.form.value.username,
+      email: this.form.value.email,
+      password: this.form.value.password
+    };
+
+    this.authService.register(userData).subscribe({
+      next: (response) => {
+        this.loading = false;
+        this.successMessage = 'Account created successfully! Welcome to CLINIC';
+        this.form.reset();
+        // Navigate to login page after successful registration
+        setTimeout(() => {
+          this.router.navigate(['/auth/login']);
+        }, 2000);
+      },
+      error: (error) => {
+        this.loading = false;
+        const errorMsg = error.message || 'Registration failed. Please try again.';
+        this.errorMessage = errorMsg;
+
+        // If email already exists, suggest logging in
+        if (errorMsg.toLowerCase().includes('already registered') || errorMsg.toLowerCase().includes('email already')) {
+          this.errorMessage = errorMsg + ' You can try logging in instead.';
+        }
+
+        console.error('Registration error:', error);
+      }
+    });
   }
 
   hasError(field: string): boolean {

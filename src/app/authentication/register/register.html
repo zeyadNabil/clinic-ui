@@ -115,6 +115,20 @@
             }
           </div>
 
+          <!-- Error Message -->
+          @if (errorMessage) {
+            <div class="alert alert-danger" role="alert">
+              {{ errorMessage }}
+            </div>
+          }
+
+          <!-- Success Message -->
+          @if (successMessage) {
+            <div class="alert alert-success" role="alert">
+              {{ successMessage }}
+            </div>
+          }
+
           <!-- Submit -->
           <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold" [disabled]="loading">
             @if (loading) {

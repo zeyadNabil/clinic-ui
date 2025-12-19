@@ -36,21 +36,25 @@
 
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
-          <!-- Username Field -->
+          <!-- Email Field -->
           <div class="mb-4">
-            <label class="form-label text-muted">Username</label>
+            <label class="form-label text-muted">Email</label>
             <div class="input-group">
-              <input type="text"
+              <input type="email"
                      class="form-control"
-                     [class.is-invalid]="hasError('username')"
-                     formControlName="username"
-                     placeholder="Enter username">
-              <span class="input-group-text"><i class="bi bi-person"></i></span>
+                     [class.is-invalid]="hasError('email')"
+                     formControlName="email"
+                     placeholder="Enter your email">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
             </div>
 
-            @if (hasError('username')) {
+            @if (hasError('email')) {
               <div class="invalid-feedback">
-                Please enter your username
+                @if (form.get('email')?.errors?.['required']) {
+                  Please enter your email
+                } @else if (form.get('email')?.errors?.['email']) {
+                  Please enter a valid email address
+                }
               </div>
             }
           </div>
@@ -82,6 +86,13 @@
             </div>
             <a href="#" class="text-primary small">Forgot your password?</a>
           </div>
+
+          <!-- Error Message -->
+          @if (errorMessage) {
+            <div class="alert alert-danger" role="alert">
+              {{ errorMessage }}
+            </div>
+          }
 
           <!-- Submit Button -->
           <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold" [disabled]="loading">

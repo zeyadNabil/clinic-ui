@@ -2,6 +2,7 @@ import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { UserService } from '../../services/user.service';
+import { AuthService } from '../../services/auth.service';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -13,6 +14,7 @@ import { Subscription } from 'rxjs';
 export class Sidebar implements OnInit, OnDestroy {
   private router = inject(Router);
   private userService = inject(UserService);
+  private authService = inject(AuthService);
   private subscriptions = new Subscription();
 
   userName: string = '';
@@ -58,6 +60,10 @@ export class Sidebar implements OnInit, OnDestroy {
   }
 
   logout() {
+    // Clear authentication token and all localStorage
+    this.authService.logout();
+    localStorage.clear();
+    
     // Navigate to login page
     this.router.navigate(['/auth/login']);
   }

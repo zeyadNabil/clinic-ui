@@ -3,6 +3,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -17,10 +18,15 @@ import { CommonModule } from '@angular/common';
 export class Login implements OnInit, OnDestroy {
   form: FormGroup;
   loading = false;
+  errorMessage = '';
 
-  constructor(private fb: FormBuilder, private router: Router) {
+  constructor(
+    private fb: FormBuilder, 
+    private router: Router,
+    private authService: AuthService
+  ) {
     this.form = this.fb.group({
-      username: ['', Validators.required],
+      email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
   }
@@ -38,15 +44,32 @@ export class Login implements OnInit, OnDestroy {
   }
 
   onSubmit() {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    
     this.loading = true;
-    setTimeout(() => {
-      this.loading = false;
-      this.router.navigate(['/dashboard']);
-    }, 1500);
+    this.errorMessage = '';
+
+    const credentials = {
+      email: this.form.value.email,
+      password: this.form.value.password
+    };
+
+    this.authService.login(credentials).subscribe({
+      next: (response) => {
+        this.loading = false;
+        this.router.navigate(['/dashboard']);
+      },
+      error: (error) => {
+        this.loading = false;
+        this.errorMessage = error.message || 'Login failed. Please check your credentials.';
+        console.error('Login error:', error);
+      }
+    });
   }
 
-  
   hasError(field: string): boolean {
     const control = this.form.get(field);
     return !!(control && control.invalid && control.touched);
