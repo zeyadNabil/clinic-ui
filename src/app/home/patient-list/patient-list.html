@@ -1,0 +1,203 @@
+<div class="patient-list-container">
+  <div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1>Patient List</h1>
+        <p class="text-muted">View and manage all registered patients</p>
+      </div>
+      @if (user && (user.role === 'admin')) {
+        <button class="btn btn-primary" (click)="openCreateModal()">
+          <i class="fas fa-plus me-2"></i>New Patient
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon dashboard">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.total }}</h3>
+          <p>Total Patients</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon active">
+          <i class="fas fa-user-check"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.active }}</h3>
+          <p>Active Patients</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon new">
+          <i class="fas fa-user-plus"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.newThisMonth }}</h3>
+          <p>New This Month</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="row g-4 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label class="form-label">
+                  <i class="fas fa-search me-2"></i>Search
+                </label>
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Search by name, phone, email..."
+                  [(ngModel)]="searchTerm"
+                  (input)="applyFilters()">
+              </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <button class="btn btn-outline-secondary w-100" (click)="searchTerm = ''">
+                <i class="fas fa-redo me-2"></i>Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patients Table -->
+  <div class="row g-4 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5>Patients List</h5>
+            <span class="text-muted">{{ filteredPatients.length }} patient(s) found</span>
+          </div>
+        </div>
+        <div class="card-body">
+          @if (filteredPatients.length === 0) {
+            <div class="empty-state">
+              <i class="fas fa-users-slash"></i>
+              <h4>No patients found</h4>
+              <p>@if (isAdmin) { Click "New Patient" to add the first one } @else { No patients registered yet }</p>
+            </div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>Registered</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (patient of filteredPatients; track patient.id) {
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center">
+                          <div class="patient-avatar">{{ patient.patientInitials }}</div>
+                          <div class="ms-2">
+                            <div class="fw-bold">{{ patient.patientName }}</div>
+                            <div class="text-muted small">{{ patient.phone }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{{ patient.phone }}</td>
+                      <td>{{ patient.email || '-' }}</td>
+                      <td>{{ patient.age }}</td>
+                      <td>{{ patient.gender }}</td>
+                      <td>{{ patient.registeredDate | date:'mediumDate' }}</td>
+                      <td>
+                        <div class="action-buttons">
+                          @if (isAdmin) {
+                            <button class="btn btn-sm btn-outline-primary" (click)="openEditModal(patient)" title="Edit">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" (click)="deletePatient(patient)" title="Delete">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit Patient Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          {{ modalMode === 'create' ? 'Create New Patient' : 'Edit Patient' }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Full Name *</label>
+            <input type="text" class="form-control" [(ngModel)]="formData.patientName" placeholder="Enter full name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Phone *</label>
+            <input type="tel" class="form-control" [(ngModel)]="formData.phone" placeholder="+1 234-567-8900" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" [(ngModel)]="formData.email" placeholder="patient@email.com">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Age *</label>
+            <input type="number" class="form-control" [(ngModel)]="formData.age" min="1" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Gender *</label>
+            <select class="form-select" [(ngModel)]="formData.gender" required>
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="savePatient()">
+          {{ modalMode === 'create' ? 'Create' : 'Update' }} Patient
+        </button>
+      </div>
+    </div>
+  </div>
+}

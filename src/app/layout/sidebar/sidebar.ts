@@ -30,12 +30,12 @@ export class Sidebar implements OnInit, OnDestroy {
     },
     {
       label: 'Patient List',
-      route: '/patients',
+      route: '/patient-list',
       icon: 'fas fa-users'
     },
     {
       label: 'Message',
-      route: '/messages',
+      route: '/message',
       icon: 'fas fa-comment-alt'
     },
     {
