@@ -1,0 +1,242 @@
+.stat-card {
+  background: var(--background-color);
+  border-radius: 1.2rem;
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 120px; /* fixed height for consistency */
+}
+
+.stat-card:hover {
+  transform: translateY(-0.5rem);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+/* Colorful gradients  */
+.stat-icon.dashboard {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* purple */
+}
+
+.stat-icon.appointments {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); /* blue */
+}
+
+.stat-icon.pending {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); /* pink */
+}
+
+.stat-icon.completed {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); /* green */
+}
+
+.stat-content h3 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+  line-height: 1;
+}
+
+.stat-content p {
+  color: var(--tertiary-color);
+  font-size: 1.4rem;
+  margin: 0.5rem 0 0 0;
+}
+
+/* Notification Icon in messages list  */
+.notification-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #e9ecef; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notification-icon i {
+  font-size: 1.8rem;
+  color: white !important;
+}
+
+/* List Group Items */
+.list-group-item {
+  padding: 1.5rem 1.2rem;
+  border-bottom: 0.1rem solid var(--secondary-color);
+}
+
+.list-group-item:last-child {
+  border-bottom: none;
+}
+
+.list-group-item .fw-bold {
+  font-size: 1.6rem;
+  color: var(--text-color);
+}
+
+.list-group-item .text-muted {
+  font-size: 1.4rem;
+  color: var(--tertiary-color);
+}
+
+.list-group-item small {
+  font-size: 1.3rem;
+  color: var(--tertiary-color);
+}
+
+/* Badge */
+.badge {
+  padding: 0.6rem 1.2rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  border-radius: 0.6rem;
+  background-color: var(--primary-color);
+  color: var(--background-color);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 6rem 2rem;
+  color: var(--tertiary-color);
+}
+
+.empty-state i {
+  font-size: 6rem;
+  color: var(--secondary-color);
+  margin-bottom: 2rem;
+}
+
+.empty-state h4 {
+  font-size: 2rem;
+  color: var(--text-color);
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  font-size: 1.4rem;
+  color: var(--tertiary-color);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--background-color);
+  padding: 1.2rem 2rem;
+  font-size: 1.4rem;
+  font-weight: 500;
+  border-radius: 0.8rem;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-color-dark);
+  transform: translateY(-0.2rem);
+  box-shadow: 0 0.4rem 1.2rem rgba(61, 143, 255, 0.3);
+}
+
+.btn-outline-primary,
+.btn-outline-info,
+.btn-outline-danger {
+  font-size: 1.2rem;
+  padding: 0.6rem 1rem;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modal-content {
+  background: var(--background-color);
+  border-radius: 1.2rem;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 2rem 2.5rem;
+  border-bottom: 0.1rem solid var(--secondary-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--tertiary-color);
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 2.5rem;
+}
+
+.modal-footer {
+  padding: 2rem 2.5rem;
+  border-top: 0.1rem solid var(--secondary-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.form-label {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.8rem;
+}
+
+.form-control,
+.form-select {
+  padding: 1rem 1.5rem;
+  font-size: 1.4rem;
+  border: 0.1rem solid var(--secondary-color);
+  border-radius: 0.8rem;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.form-control:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.3rem rgba(61, 143, 255, 0.1);
+}

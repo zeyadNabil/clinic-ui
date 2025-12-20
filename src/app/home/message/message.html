@@ -1,0 +1,164 @@
+<div class="messages-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1>Messages</h1>
+        <p class="text-muted">
+          @if (user?.role === 'admin') { All clinic notifications }
+          @else if (user?.role === 'doctor') { Your appointment and patient updates }
+          @else { Your personal notifications }
+        </p>
+      </div>
+      @if (user?.role === 'admin') {
+        <button class="btn btn-primary" (click)="openSendModal()">
+          <i class="fas fa-paper-plane me-2"></i>Send Message
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon dashboard">
+          <i class="fas fa-envelope"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.total }}</h3>
+          <p>Total Messages</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon appointments">
+          <i class="fas fa-calendar-day"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.today }}</h3>
+          <p>Today's Messages</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon pending">
+          <i class="fas fa-envelope-open"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.unread }}</h3>
+          <p>Unread</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <div class="stat-card">
+        <div class="stat-icon completed">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-content">
+          <h3>{{ stats.read }}</h3>
+          <p>Read</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages List -->
+  <div class="row g-4 mt-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body p-0">
+          @if (displayedMessages.length === 0) {
+            <div class="empty-state">
+              <i class="fas fa-bell-slash"></i>
+              <h4>No messages</h4>
+              <p>All caught up!</p>
+            </div>
+          } @else {
+            <div class="list-group list-group-flush">
+              @for (msg of displayedMessages; track msg.id) {
+                <div class="list-group-item d-flex align-items-start p-4" [ngClass]="{'bg-light': msg.read}">
+                  <div class="flex-shrink-0 me-4">
+                    <div class="notification-icon rounded-circle d-flex align-items-center justify-content-center text-white" style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                      <i [ngClass]="getIconClass(msg.type)" style="font-size: 1.8rem;"></i>
+                    </div>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h6 class="mb-1 fw-bold">{{ msg.title }}</h6>
+                        <p class="mb-1 text-muted">{{ msg.message }}</p>
+                        <small class="text-muted">{{ msg.timeAgo }}</small>
+                      </div>
+                      <div class="d-flex gap-2">
+                        @if (!msg.read) {
+                          <button class="btn btn-sm btn-outline-primary" (click)="markAsRead(msg.id)">
+                            Mark as read
+                          </button>
+                        }
+                        @if (user?.role === 'admin') {
+                          <button class="btn btn-sm btn-outline-info" (click)="openReplyModal(msg)">
+                            <i class="fas fa-reply"></i> Reply
+                          </button>
+                          <button class="btn btn-sm btn-outline-danger" (click)="deleteMessage(msg.id)">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Send / Reply Message Modal -->
+@if (showSendModal) {
+  <div class="modal-overlay" (click)="closeSendModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          {{ replyingTo ? 'Reply to Message' : 'Send New Message' }}
+        </h5>
+        <button type="button" class="btn-close" (click)="closeSendModal()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Title *</label>
+            <input type="text" class="form-control" [(ngModel)]="sendForm.title" placeholder="Enter message title" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Message *</label>
+            <textarea class="form-control" rows="6" [(ngModel)]="sendForm.message" placeholder="Write your message here..." required></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Type</label>
+            <select class="form-select" [(ngModel)]="sendForm.type">
+              <option value="message">General Message</option>
+              <option value="appointment">Appointment Update</option>
+              <option value="payment">Payment Notice</option>
+              <option value="prescription">Prescription Info</option>
+              <option value="cancel">Cancellation</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" (click)="closeSendModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" (click)="sendMessage()">Send Message</button>
+      </div>
+    </div>
+  </div>
+}
