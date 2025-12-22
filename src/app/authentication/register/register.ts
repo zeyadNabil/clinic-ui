@@ -30,7 +30,8 @@ export class Register implements OnInit, OnDestroy {
       username: ['', [Validators.required, Validators.minLength(3)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required]
+      confirmPassword: ['', Validators.required],
+      role: ['PATIENT', Validators.required] // Default to PATIENT
     });
 
     this.form.get('confirmPassword')?.valueChanges.subscribe(() => {
@@ -64,13 +65,14 @@ export class Register implements OnInit, OnDestroy {
     const userData = {
       username: this.form.value.username,
       email: this.form.value.email,
-      password: this.form.value.password
+      password: this.form.value.password,
+      role: this.form.value.role || 'PATIENT'
     };
 
     this.authService.register(userData).subscribe({
       next: (response) => {
         this.loading = false;
-        this.successMessage = 'Account created successfully! Welcome to CLINIC';
+        this.successMessage = 'Account created successfully! Welcome to CLINIC. Please login.';
         this.form.reset();
         // Navigate to login page after successful registration
         setTimeout(() => {

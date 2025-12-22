@@ -1,0 +1,100 @@
+<div class="prescriptions-container">
+  <div class="page-header">
+    <h1>My Prescriptions</h1>
+    <p class="text-muted">View all your prescriptions from doctors</p>
+  </div>
+
+  @if (loading) {
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  } @else if (!prescriptions || prescriptions.length === 0) {
+    <div class="empty-state">
+      <div class="empty-icon">
+        <i class="fas fa-file-medical"></i>
+      </div>
+      <h3>No Prescriptions Yet</h3>
+      <p>You don't have any prescriptions yet. Prescriptions will appear here after your doctor writes them.</p>
+    </div>
+  } @else {
+    <div class="prescriptions-list">
+      @for (prescription of prescriptions; track prescription.id) {
+        <div class="prescription-card">
+          <div class="prescription-header">
+            <div class="prescription-info">
+              <h3>
+                <i class="fas fa-user-md me-2"></i>
+                {{ getDoctorDisplayName(prescription.doctor?.name) }}
+              </h3>
+              <p class="text-muted mb-0">
+                <i class="fas fa-calendar me-2"></i>
+                {{ formatDate(prescription.createdAt) }}
+              </p>
+            </div>
+            <div class="prescription-badge">
+              <span class="badge bg-primary">Prescription</span>
+              <button 
+                class="btn btn-sm btn-danger ms-2" 
+                (click)="deletePrescription(prescription.id!)"
+                title="Delete prescription">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="prescription-body">
+            @if (prescription.diagnosis) {
+              <div class="prescription-section">
+                <h4>
+                  <i class="fas fa-stethoscope me-2"></i>
+                  Diagnosis
+                </h4>
+                <p>{{ prescription.diagnosis }}</p>
+              </div>
+            }
+
+            @if (prescription.medications) {
+              <div class="prescription-section">
+                <h4>
+                  <i class="fas fa-pills me-2"></i>
+                  Medications
+                </h4>
+                <div class="medications-list">
+                  @for (med of getMedicationsList(prescription.medications); track $index) {
+                    <div class="medication-item">
+                      <i class="fas fa-check-circle me-2"></i>
+                      {{ med }}
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (prescription.instructions) {
+              <div class="prescription-section">
+                <h4>
+                  <i class="fas fa-clipboard-list me-2"></i>
+                  Instructions
+                </h4>
+                <p class="instructions-text">{{ prescription.instructions }}</p>
+              </div>
+            }
+
+            @if (prescription.notes) {
+              <div class="prescription-section">
+                <h4>
+                  <i class="fas fa-notes-medical me-2"></i>
+                  Additional Notes
+                </h4>
+                <p class="notes-text">{{ prescription.notes }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+

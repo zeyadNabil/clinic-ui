@@ -1,10 +1,15 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 import { AppointmentService, Appointment } from './appointment.service';
 
 export interface Payment {
   id: number;
   appointmentId: number;
+  appointment?: Appointment; // Full appointment object from backend
   patientName: string;
   doctor: string;
   date: string;
@@ -14,8 +19,36 @@ export interface Payment {
   doctorEarning: number; // 80% of amount
   status: 'pending' | 'paid' | 'failed';
   paymentDate?: string;
-  paymentMethod?: string;
+  paymentMethod: 'CASH' | 'VISA';
   cardLast4?: string;
+  createdAt: string;
+}
+
+// Backend payment structure
+interface BackendPayment {
+  id: number;
+  appointment: {
+    id: number;
+    patient: {
+      id: number;
+      username: string;
+      email: string;
+    };
+    doctor: {
+      id: number;
+      name: string;
+      email: string;
+      specialty: string;
+    };
+    appointmentTime: string;
+    reason: string;
+    status: string;
+  };
+  amount: number;
+  paymentMethod: string;
+  status: string;
+  cardLast4?: string;
+  paymentDate?: string;
   createdAt: string;
 }
 
@@ -34,6 +67,7 @@ export interface CardInfo {
   providedIn: 'root'
 })
 export class PaymentService {
+  private apiUrl = `${environment.apiUrl}/payments`;
   private paymentsSubject = new BehaviorSubject<Payment[]>([]);
   public payments$: Observable<Payment[]> = this.paymentsSubject.asObservable();
 
@@ -43,38 +77,83 @@ export class PaymentService {
   private readonly CLINIC_TAX_RATE = 0.20; // 20%
   private readonly DOCTOR_EARNING_RATE = 0.80; // 80%
 
-  constructor(private appointmentService: AppointmentService) {
-    this.loadInitialPayments();
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService,
+    private appointmentService: AppointmentService
+  ) {
     this.loadInitialCards();
+    // Load payments when service is created
+    this.loadPayments().subscribe();
   }
 
-  private loadInitialPayments() {
-    const appointments = this.appointmentService.getAppointments();
-    const payments: Payment[] = appointments
-      .filter(apt => apt.paymentStatus === 'paid' && apt.paymentId)
-      .map(apt => {
-        const clinicTax = apt.amount! * this.CLINIC_TAX_RATE;
-        const doctorEarning = apt.amount! * this.DOCTOR_EARNING_RATE;
-        
-        return {
-          id: apt.paymentId!,
-          appointmentId: apt.id,
-          patientName: apt.patientName,
-          doctor: apt.doctor,
-          date: apt.date,
-          time: apt.time,
-          amount: apt.amount!,
-          clinicTax,
-          doctorEarning,
-          status: 'paid' as const,
-          paymentDate: apt.date,
-          paymentMethod: 'card',
-          cardLast4: '4242',
-          createdAt: apt.date
-        };
-      });
-    
-    this.paymentsSubject.next(payments);
+  private getHeaders(): HttpHeaders {
+    const token = this.authService.getToken();
+    return new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    });
+  }
+
+  // Load payments from backend
+  loadPayments(): Observable<Payment[]> {
+    const role = this.authService.getUserRole();
+    let endpoint = '';
+
+    if (role === 'ADMIN') {
+      endpoint = this.apiUrl; // Get all payments
+    } else if (role === 'PATIENT') {
+      endpoint = `${this.apiUrl}/my-pending`; // Get patient's pending Visa payments
+    } else {
+      // For doctors, we'll filter by doctor name in the component
+      endpoint = this.apiUrl;
+    }
+
+    return this.http.get<BackendPayment[]>(endpoint, { headers: this.getHeaders() })
+      .pipe(
+        map(backendPayments => {
+          const payments = (backendPayments || []).map(bp => this.mapBackendToFrontend(bp));
+          this.paymentsSubject.next(payments);
+          return payments;
+        }),
+        catchError((error: HttpErrorResponse) => {
+          console.error('Load payments error:', error);
+          this.paymentsSubject.next([]);
+          return of([]);
+        })
+      );
+  }
+
+  // Map backend payment to frontend format
+  private mapBackendToFrontend(backend: BackendPayment): Payment {
+    const appointmentTime = new Date(backend.appointment.appointmentTime);
+    const date = appointmentTime.toISOString().split('T')[0];
+    const hours = appointmentTime.getHours();
+    const minutes = appointmentTime.getMinutes();
+    const hour12 = hours % 12 || 12;
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const time = `${hour12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+
+    const amount = backend.amount || 0;
+    const clinicTax = amount * this.CLINIC_TAX_RATE;
+    const doctorEarning = amount * this.DOCTOR_EARNING_RATE;
+
+    return {
+      id: backend.id,
+      appointmentId: backend.appointment.id,
+      patientName: backend.appointment.patient?.username || backend.appointment.patient?.email || 'Unknown',
+      doctor: backend.appointment.doctor?.name || 'Unknown Doctor',
+      date: date,
+      time: time,
+      amount: amount,
+      clinicTax: clinicTax,
+      doctorEarning: doctorEarning,
+      status: (backend.status as 'pending' | 'paid' | 'failed') || 'pending',
+      paymentDate: backend.paymentDate,
+      paymentMethod: (backend.paymentMethod as 'CASH' | 'VISA') || 'CASH',
+      cardLast4: backend.cardLast4,
+      createdAt: backend.createdAt || date
+    };
   }
 
   private loadInitialCards() {
@@ -102,66 +181,72 @@ export class PaymentService {
     };
   }
 
-  // Create payment from appointment
-  createPayment(appointmentId: number, cardInfo: CardInfo): Payment | null {
-    const appointment = this.appointmentService.getAppointmentById(appointmentId);
-    if (!appointment || !appointment.amount) return null;
-
-    const breakdown = this.calculatePaymentBreakdown(appointment.amount);
-    const payments = this.paymentsSubject.value;
-    const newId = payments.length > 0 
-      ? Math.max(...payments.map(p => p.id)) + 1 
-      : 1;
-
-    const payment: Payment = {
-      id: newId,
-      appointmentId: appointment.id,
-      patientName: appointment.patientName,
-      doctor: appointment.doctor,
-      date: appointment.date,
-      time: appointment.time,
-      amount: appointment.amount,
-      clinicTax: breakdown.clinicTax,
-      doctorEarning: breakdown.doctorEarning,
-      status: 'paid',
-      paymentDate: new Date().toISOString().split('T')[0],
-      paymentMethod: 'card',
-      cardLast4: cardInfo.last4,
-      createdAt: new Date().toISOString().split('T')[0]
+  // Create payment from appointment (for Visa payments)
+  createPayment(appointmentId: number, cardInfo: CardInfo): Observable<Payment> {
+    const request = {
+      appointmentId: appointmentId,
+      paymentMethod: 'VISA',
+      cardLast4: cardInfo.last4
     };
 
-    // Update appointment payment status
-    this.appointmentService.updateAppointment(appointmentId, {
-      paymentStatus: 'paid',
-      paymentId: newId
-    });
-
-    const updatedPayments = [...payments, payment];
-    this.paymentsSubject.next(updatedPayments);
-    return payment;
+    return this.http.post<BackendPayment>(this.apiUrl, request, { headers: this.getHeaders() })
+      .pipe(
+        map(backend => {
+          const payment = this.mapBackendToFrontend(backend);
+          // Update local state immediately
+          const current = this.paymentsSubject.value;
+          this.paymentsSubject.next([...current, payment]);
+          // Reload to ensure sync
+          this.loadPayments().subscribe();
+          return payment;
+        }),
+        catchError((error: HttpErrorResponse) => {
+          console.error('Create payment error:', error);
+          return throwError(() => new Error(error.error?.message || 'Failed to create payment'));
+        })
+      );
   }
 
-  // Mark payment as paid (admin)
-  markPaymentAsPaid(paymentId: number): boolean {
-    const payments = this.paymentsSubject.value;
-    const index = payments.findIndex(p => p.id === paymentId);
-    
-    if (index === -1) return false;
+  // Mark payment as paid (admin) - for cash payments
+  markPaymentAsPaid(paymentId: number): Observable<Payment> {
+    return this.http.put<BackendPayment>(`${this.apiUrl}/${paymentId}/approve`, {}, { headers: this.getHeaders() })
+      .pipe(
+        map(backend => {
+          const payment = this.mapBackendToFrontend(backend);
+          // Update local state immediately
+          const current = this.paymentsSubject.value;
+          const updated = current.map(p => p.id === paymentId ? payment : p);
+          this.paymentsSubject.next(updated);
+          // Reload to ensure sync
+          this.loadPayments().subscribe();
+          return payment;
+        }),
+        catchError((error: HttpErrorResponse) => {
+          console.error('Approve payment error:', error);
+          return throwError(() => new Error(error.error?.message || 'Failed to approve payment'));
+        })
+      );
+  }
 
-    const payment = payments[index];
-    payment.status = 'paid';
-    payment.paymentDate = new Date().toISOString().split('T')[0];
-
-    // Update appointment
-    this.appointmentService.updateAppointment(payment.appointmentId, {
-      paymentStatus: 'paid',
-      paymentId: payment.id
-    });
-
-    const updatedPayments = [...payments];
-    updatedPayments[index] = payment;
-    this.paymentsSubject.next(updatedPayments);
-    return true;
+  // Deny payment (admin) - mark as failed
+  denyPayment(paymentId: number): Observable<Payment> {
+    return this.http.put<BackendPayment>(`${this.apiUrl}/${paymentId}/deny`, {}, { headers: this.getHeaders() })
+      .pipe(
+        map(backend => {
+          const payment = this.mapBackendToFrontend(backend);
+          // Update local state immediately
+          const current = this.paymentsSubject.value;
+          const updated = current.map(p => p.id === paymentId ? payment : p);
+          this.paymentsSubject.next(updated);
+          // Reload to ensure sync
+          this.loadPayments().subscribe();
+          return payment;
+        }),
+        catchError((error: HttpErrorResponse) => {
+          console.error('Deny payment error:', error);
+          return throwError(() => new Error(error.error?.message || 'Failed to deny payment'));
+        })
+      );
   }
 
   // Get today's payments

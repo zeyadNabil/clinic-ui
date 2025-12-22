@@ -1,12 +1,12 @@
 <div class="payments-container">
   @if (user) {
     <!-- Admin View -->
-    @if (user.role === 'admin') {
+    @if (user.role === 'ADMIN') {
       <div class="page-header">
         <div class="d-flex justify-content-between align-items-center">
           <div>
-            <h1>Today's Payments</h1>
-            <p class="text-muted">Manage and track today's payment transactions</p>
+            <h1>Payment Management</h1>
+            <p class="text-muted">View all payments and approve or deny cash payments from patients</p>
           </div>
         </div>
       </div>
@@ -32,7 +32,7 @@
             </div>
             <div class="stat-content">
               <h3>{{ todayPayments.length }}</h3>
-              <p>Today's Payments</p>
+              <p>Total Payments</p>
             </div>
           </div>
         </div>
@@ -68,7 +68,7 @@
           <div class="card">
             <div class="card-body">
               <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                   <div class="form-group">
                     <label class="form-label">
                       <i class="fas fa-search me-2"></i>Search
@@ -80,7 +80,7 @@
                       [(ngModel)]="searchTerm">
                   </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                   <div class="form-group">
                     <label class="form-label">
                       <i class="fas fa-filter me-2"></i>Status
@@ -93,10 +93,22 @@
                     </select>
                   </div>
                 </div>
+                <div class="col-md-3">
+                  <div class="form-group">
+                    <label class="form-label">
+                      <i class="fas fa-credit-card me-2"></i>Payment Method
+                    </label>
+                    <select class="form-select" [(ngModel)]="paymentMethodFilter">
+                      <option value="all">All Methods</option>
+                      <option value="CASH">Cash</option>
+                      <option value="VISA">Visa</option>
+                    </select>
+                  </div>
+                </div>
                 <div class="col-md-2 d-flex align-items-end">
                   <button
                     class="btn btn-outline-secondary w-100"
-                    (click)="searchTerm = ''; statusFilter = 'all'">
+                    (click)="searchTerm = ''; statusFilter = 'all'; paymentMethodFilter = 'all'">
                     <i class="fas fa-redo me-2"></i>Reset
                   </button>
                 </div>
@@ -112,7 +124,7 @@
           <div class="card">
             <div class="card-header">
               <div class="d-flex justify-content-between align-items-center">
-                <h5>Today's Payment Transactions</h5>
+                <h5>All Payments</h5>
                 <span class="text-muted">{{ filteredAdminPayments.length }} payment(s) found</span>
               </div>
             </div>
@@ -121,7 +133,7 @@
                 <div class="empty-state">
                   <i class="fas fa-credit-card"></i>
                   <h4>No payments found</h4>
-                  <p>No payment transactions for today</p>
+                  <p>No payment records match your filters</p>
                 </div>
               } @else {
                 <div class="table-responsive">
@@ -157,24 +169,43 @@
                             </span>
                           </td>
                           <td>
-                            @if (payment.cardLast4) {
+                            @if (payment.paymentMethod === 'CASH') {
+                              <span class="badge bg-info">
+                                <i class="fas fa-money-bill me-1"></i>Cash
+                              </span>
+                            } @else if (payment.paymentMethod === 'VISA' && payment.cardLast4) {
                               <div>
                                 <i class="fas fa-credit-card me-2"></i>
-                                **** {{ payment.cardLast4 }}
+                                <span class="badge bg-primary">Visa</span> **** {{ payment.cardLast4 }}
                               </div>
                             } @else {
-                              <span class="text-muted">-</span>
+                              <span class="text-muted">{{ payment.paymentMethod || '-' }}</span>
                             }
                           </td>
                           <td>
-                            <div class="action-buttons">
-                              @if (payment.status === 'pending') {
+                            <div class="action-buttons d-flex gap-2">
+                              @if (payment.status === 'pending' && payment.paymentMethod === 'CASH') {
                                 <button
                                   class="btn btn-sm btn-success"
                                   (click)="markAsPaid(payment)"
-                                  title="Mark as Paid">
-                                  <i class="fas fa-check me-1"></i>Mark Paid
+                                  title="Approve Payment">
+                                  <i class="fas fa-check me-1"></i>Approve
                                 </button>
+                                <button
+                                  class="btn btn-sm btn-danger"
+                                  (click)="denyPayment(payment)"
+                                  title="Deny Payment">
+                                  <i class="fas fa-times me-1"></i>Deny
+                                </button>
+                              } @else {
+                                <span class="badge" [ngClass]="getStatusBadgeClass(payment.status)">
+                                  {{ getStatusText(payment.status) }}
+                                </span>
+                                @if (payment.status === 'pending' && payment.paymentMethod === 'VISA') {
+                                  <span class="badge bg-info ms-2">
+                                    <i class="fas fa-clock me-1"></i>Awaiting Payment
+                                  </span>
+                                }
                               }
                             </div>
                           </td>
@@ -191,7 +222,7 @@
     }
 
     <!-- Doctor View -->
-    @else if (user.role === 'doctor') {
+    @else if (user.role === 'DOCTOR') {
       <div class="page-header">
         <div class="d-flex justify-content-between align-items-center">
           <div>
@@ -445,7 +476,7 @@
     }
 
     <!-- Patient View -->
-    @else if (user.role === 'patient') {
+    @else if (user.role === 'PATIENT') {
       <div class="page-header">
         <div class="d-flex justify-content-between align-items-center">
           <div>

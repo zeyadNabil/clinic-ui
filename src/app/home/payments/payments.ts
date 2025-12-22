@@ -23,6 +23,7 @@ export class PaymentsComponent implements OnInit, OnDestroy {
   // Admin/Doctor filters
   statusFilter = 'all';
   dateFilter = 'all';
+  paymentMethodFilter: 'all' | 'CASH' | 'VISA' = 'all';
   searchTerm = '';
 
   // Admin stats
@@ -80,6 +81,10 @@ export class PaymentsComponent implements OnInit, OnDestroy {
     // Subscribe to user
     const userSub = this.userService.currentUser$.subscribe(user => {
       this.user = user;
+      if (user) {
+        // Load payments when user is available
+        this.paymentService.loadPayments().subscribe();
+      }
       this.updateData();
     });
     this.subscriptions.add(userSub);
@@ -112,19 +117,22 @@ export class PaymentsComponent implements OnInit, OnDestroy {
   updateData() {
     if (!this.user) return;
 
-    if (this.user.role === 'admin') {
+    if (this.user.role === 'ADMIN') {
+      // Admin sees all payments, but filter to show cash payments that need approval
       this.updateTodayPayments();
       this.updateAdminStats();
-    } else if (this.user.role === 'doctor') {
+    } else if (this.user.role === 'DOCTOR') {
       this.updateDoctorStats();
-    } else if (this.user.role === 'patient') {
+    } else if (this.user.role === 'PATIENT') {
+      // Patient sees their pending Visa payments
       this.updatePatientAppointments();
     }
   }
 
   // Admin methods
   updateTodayPayments() {
-    this.todayPayments = this.paymentService.getTodayPayments();
+    // Show ALL payments (both CASH and VISA) - admin sees everything
+    this.todayPayments = this.payments;
   }
 
   updateAdminStats() {
@@ -143,12 +151,17 @@ export class PaymentsComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(p => p.status === this.statusFilter);
     }
 
+    if (this.paymentMethodFilter !== 'all') {
+      filtered = filtered.filter(p => p.paymentMethod === this.paymentMethodFilter);
+    }
+
     if (this.searchTerm) {
       const term = this.searchTerm.toLowerCase();
       filtered = filtered.filter(p =>
         p.patientName.toLowerCase().includes(term) ||
         p.doctor.toLowerCase().includes(term) ||
-        p.amount.toString().includes(term)
+        p.amount.toString().includes(term) ||
+        p.paymentMethod.toLowerCase().includes(term)
       );
     }
 
@@ -156,8 +169,34 @@ export class PaymentsComponent implements OnInit, OnDestroy {
   }
 
   markAsPaid(payment: Payment) {
-    if (confirm(`Mark payment of $${payment.amount} for ${payment.patientName} as paid?`)) {
-      this.paymentService.markPaymentAsPaid(payment.id);
+    if (confirm(`Approve cash payment of ${this.formatCurrency(payment.amount)} for ${payment.patientName}?`)) {
+      const sub = this.paymentService.markPaymentAsPaid(payment.id).subscribe({
+        next: () => {
+          alert('Payment approved successfully!');
+          this.paymentService.loadPayments().subscribe();
+        },
+        error: (error) => {
+          alert('Failed to approve payment: ' + (error.message || 'Unknown error'));
+          console.error('Approve payment error:', error);
+        }
+      });
+      this.subscriptions.add(sub);
+    }
+  }
+
+  denyPayment(payment: Payment) {
+    if (confirm(`Deny cash payment of ${this.formatCurrency(payment.amount)} for ${payment.patientName}? This will mark the payment as failed.`)) {
+      const sub = this.paymentService.denyPayment(payment.id).subscribe({
+        next: () => {
+          alert('Payment denied successfully!');
+          this.paymentService.loadPayments().subscribe();
+        },
+        error: (error) => {
+          alert('Failed to deny payment: ' + (error.message || 'Unknown error'));
+          console.error('Deny payment error:', error);
+        }
+      });
+      this.subscriptions.add(sub);
     }
   }
 
@@ -213,8 +252,10 @@ export class PaymentsComponent implements OnInit, OnDestroy {
   // Patient methods
   updatePatientAppointments() {
     if (this.user) {
-      this.appointments = this.appointmentService.getAppointments().filter(apt =>
+      // Show appointments with pending Visa payments
+      this.appointments = this.appointments.filter(apt =>
         apt.patientName === this.user!.name &&
+        apt.paymentMethod === 'VISA' &&
         apt.paymentStatus === 'pending' &&
         apt.amount && apt.amount > 0
       );
@@ -329,17 +370,21 @@ export class PaymentsComponent implements OnInit, OnDestroy {
       }
     }
 
-    const payment = this.paymentService.createPayment(
+    const sub = this.paymentService.createPayment(
       this.selectedAppointment.id,
       cardToUse
-    );
-
-    if (payment) {
-      alert(`Payment of ${this.formatCurrency(this.selectedAppointment.amount!)} processed successfully!`);
-      this.closePaymentModal();
-    } else {
-      alert('Payment failed. Please try again.');
-    }
+    ).subscribe({
+      next: (payment) => {
+        alert(`Payment of ${this.formatCurrency(this.selectedAppointment!.amount!)} processed successfully!`);
+        this.closePaymentModal();
+        this.paymentService.loadPayments().subscribe();
+      },
+      error: (error) => {
+        alert('Payment failed: ' + (error.message || 'Unknown error'));
+        console.error('Process payment error:', error);
+      }
+    });
+    this.subscriptions.add(sub);
   }
 
   validateNewCard(): boolean {

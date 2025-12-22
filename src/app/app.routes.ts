@@ -21,6 +21,16 @@ export const routes: Routes = [
     loadComponent: () => import('./home/payments/payments').then(c => c.PaymentsComponent),
     canActivate: [authGuard]
   },
+  {
+    path: 'doctors',
+    loadComponent: () => import('./home/doctors/doctors').then(c => c.Doctors),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'prescriptions',
+    loadComponent: () => import('./home/prescriptions/prescriptions').then(c => c.Prescriptions),
+    canActivate: [authGuard]
+  },
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
   { path: '**', redirectTo: '/auth/login' }
 ];
