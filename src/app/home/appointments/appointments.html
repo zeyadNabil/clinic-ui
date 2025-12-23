@@ -5,7 +5,7 @@
         <h1>Appointments</h1>
         <p class="text-muted">Manage and schedule patient appointments</p>
       </div>
-      @if (user && (user.role === 'patient' || user.role === 'admin')) {
+      @if (user && (user.role === 'PATIENT' || user.role === 'ADMIN')) {
         <button class="btn btn-primary" (click)="openCreateModal()">
           <i class="fas fa-plus me-2"></i>New Appointment
         </button>
@@ -146,17 +146,17 @@
               <table class="table">
                 <thead>
                   <tr>
-                    @if (user && user.role !== 'patient') {
+                    @if (user && user.role !== 'PATIENT') {
                       <th>Patient</th>
                     }
-                    @if (user && user.role !== 'doctor') {
+                    @if (user && user.role !== 'DOCTOR') {
                       <th>Doctor</th>
                     }
                     <th>Date</th>
                     <th>Time</th>
                     <th>Type</th>
                     <th>Status</th>
-                    @if (user && user.role === 'admin') {
+                    @if (user && user.role === 'ADMIN') {
                       <th>Message</th>
                     }
                     <th>Actions</th>
@@ -165,7 +165,7 @@
                 <tbody>
                   @for (appointment of filteredAppointments; track appointment.id) {
                     <tr>
-                      @if (user && user.role !== 'patient') {
+                      @if (user && user.role !== 'PATIENT') {
                         <td>
                           <div class="d-flex align-items-center">
                             <div class="patient-avatar">{{ appointment.patientInitials }}</div>
@@ -176,7 +176,7 @@
                           </div>
                         </td>
                       }
-                      @if (user && user.role !== 'doctor') {
+                      @if (user && user.role !== 'DOCTOR') {
                         <td>{{ appointment.doctor }}</td>
                       }
                       <td>
@@ -189,20 +189,22 @@
                           {{ getStatusText(appointment.status) }}
                         </span>
                       </td>
-                      @if (user && user.role === 'admin' && appointment.cancellationMessage) {
+                      @if (user && user.role === 'ADMIN') {
                         <td>
-                          <button
-                            class="btn btn-sm btn-outline-info"
-                            (click)="openMessageModal(appointment)"
-                            title="View Cancellation Message">
-                            <i class="fas fa-comment-alt"></i>
-                          </button>
+                          @if (appointment.cancellationMessage) {
+                            <button
+                              class="btn btn-sm btn-outline-info"
+                              (click)="openMessageModal(appointment)"
+                              title="View Cancellation Message">
+                              <i class="fas fa-comment-alt"></i>
+                            </button>
+                          }
                         </td>
                       }
                       <td>
                         <div class="action-buttons">
                           <!-- Admin Actions -->
-                          @if (user && user.role === 'admin') {
+                          @if (user && user.role === 'ADMIN') {
                             @if (appointment.status === 'pending_approval') {
                               <button
                                 class="btn btn-sm btn-success"
@@ -226,7 +228,7 @@
                           }
 
                           <!-- Doctor Actions -->
-                          @if (user && user.role === 'doctor') {
+                          @if (user && user.role === 'DOCTOR') {
                             @if (canCancelAppointment(appointment)) {
                               <button
                                 class="btn btn-sm btn-outline-danger"
@@ -238,7 +240,7 @@
                           }
 
                           <!-- Patient Actions -->
-                          @if (user && user.role === 'patient') {
+                          @if (user && user.role === 'PATIENT') {
                             <button
                               class="btn btn-sm btn-outline-primary"
                               [disabled]="!canEditAppointment(appointment)"
@@ -288,58 +290,72 @@
                 class="form-control"
                 [(ngModel)]="formData.patientName"
                 name="patientName"
-                [readonly]="user ? user.role === 'patient' : false"
-                [disabled]="user ? user.role === 'patient' : false"
-                [placeholder]="user && user.role === 'patient' ? (user.name || 'Enter patient name') : 'Enter patient name'"
+                [readonly]="user ? user.role === 'PATIENT' : false"
+                [disabled]="user ? user.role === 'PATIENT' : false"
+                [placeholder]="user && user.role === 'PATIENT' ? (user.name || 'Enter patient name') : 'Enter patient name'"
                 required>
             </div>
             <div class="col-md-6">
               <label class="form-label">Doctor *</label>
               <select
                 class="form-select"
-                [(ngModel)]="formData.doctor"
-                name="doctor"
+                [(ngModel)]="formData.doctorId"
+                name="doctorId"
+                (change)="onDoctorChange()"
                 required>
-                <option value="">Select Doctor</option>
-                @for (doctor of doctors; track doctor) {
-                  <option [value]="doctor">{{ doctor }}</option>
+                <option [value]="0">Select Doctor</option>
+                @for (doctor of doctors; track doctor.id) {
+                  <option [value]="doctor.id">{{ doctor.name }}@if (doctor.consultationFee) { - ${{ doctor.consultationFee }}}</option>
                 }
               </select>
+              @if (loadingDoctors) {
+                <small class="text-muted">Loading doctors...</small>
+              }
+              @if (doctors.length === 0 && !loadingDoctors) {
+                <small class="text-warning">No doctors available. Please add doctors first.</small>
+              }
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Date *</label>
-              <input
-                type="date"
-                class="form-control"
-                [(ngModel)]="formData.date"
-                name="date"
-                required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Time *</label>
-              <input
-                type="time"
-                class="form-control"
-                [(ngModel)]="formData.time"
-                name="time"
-                required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Type *</label>
-              <select
-                class="form-select"
-                [(ngModel)]="formData.type"
-                name="type"
-                required>
-                <option value="">Select Type</option>
-                <option value="Checkup">Checkup</option>
-                <option value="Consultation">Consultation</option>
-                <option value="Treatment">Treatment</option>
-                <option value="Follow-up">Follow-up</option>
-                <option value="Emergency">Emergency</option>
-              </select>
-            </div>
-                          @if (user && user.role === 'admin') {
+                  <div class="col-md-6">
+                    <label class="form-label">Date *</label>
+                    <input
+                      type="date"
+                      class="form-control"
+                      [(ngModel)]="formData.date"
+                      name="date"
+                      [min]="minDate"
+                      (change)="onDateChange()"
+                      required>
+                    <small class="text-muted">Cannot select past dates</small>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Time *</label>
+                    <select
+                      class="form-select"
+                      [(ngModel)]="formData.time"
+                      name="time"
+                      required>
+                      <option value="">Select Time</option>
+                      @for (time of clinicHours; track time) {
+                        <option [value]="time">{{ formatTimeForDisplay(time) }}</option>
+                      }
+                    </select>
+                    <small class="text-muted">Clinic hours: 9:00 AM - 9:00 PM</small>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Reason/Type *</label>
+                    <select
+                      class="form-select"
+                      [(ngModel)]="formData.reason"
+                      name="reason"
+                      required>
+                      <option value="">Select Appointment Reason</option>
+                      @for (reason of appointmentReasons; track reason) {
+                        <option [value]="reason">{{ reason }}</option>
+                      }
+                    </select>
+                    <small class="text-muted">Select the reason for this appointment</small>
+                  </div>
+                          @if (user && user.role === 'ADMIN') {
               <div class="col-md-6">
                 <label class="form-label">Status *</label>
                 <select
@@ -356,6 +372,31 @@
                 </select>
               </div>
             }
+            <div class="col-md-6">
+              <label class="form-label">Payment Method *</label>
+              <select
+                class="form-select"
+                [(ngModel)]="formData.paymentMethod"
+                name="paymentMethod"
+                required>
+                <option value="CASH">Cash (Pay at Clinic)</option>
+                <option value="VISA">Visa (Pay Online)</option>
+              </select>
+              <small class="text-muted">Cash payments require admin approval. Visa payments can be paid online.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Amount ($) *</label>
+              <input
+                type="number"
+                class="form-control"
+                [(ngModel)]="formData.amount"
+                name="amount"
+                [readonly]="true"
+                [value]="formData.amount"
+                placeholder="Select doctor to see fee"
+                required>
+              <small class="text-muted">Amount is calculated based on selected doctor's consultation fee</small>
+            </div>
             <div class="col-md-6">
               <label class="form-label">Phone</label>
               <input
@@ -403,7 +444,7 @@
         }
         <div class="form-group">
           <label class="form-label">
-            @if (user && user.role === 'doctor') {
+            @if (user && user.role === 'DOCTOR') {
               Reason for Cancellation (This message will be sent to admin for review) *
             } @else {
               Reason for Cancellation *

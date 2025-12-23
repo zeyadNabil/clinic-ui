@@ -115,6 +115,40 @@
             }
           </div>
 
+          <!-- Role Selection -->
+          <div class="mb-4">
+            <label class="form-label text-muted">Register As</label>
+            <div class="input-group">
+              <select class="form-select"
+                      [class.is-invalid]="hasError('role')"
+                      formControlName="role">
+                <option value="PATIENT">Patient</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+              <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+            </div>
+
+            @if (hasError('role')) {
+              <div class="invalid-feedback">
+                Please select a role.
+              </div>
+            }
+          </div>
+
+          <!-- Error Message -->
+          @if (errorMessage) {
+            <div class="alert alert-danger" role="alert">
+              {{ errorMessage }}
+            </div>
+          }
+
+          <!-- Success Message -->
+          @if (successMessage) {
+            <div class="alert alert-success" role="alert">
+              {{ successMessage }}
+            </div>
+          }
+
           <!-- Submit -->
           <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold" [disabled]="loading">
             @if (loading) {

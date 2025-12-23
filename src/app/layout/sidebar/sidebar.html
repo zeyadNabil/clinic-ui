@@ -12,7 +12,7 @@
 
   <!-- Navigation Items -->
   <nav class="sidebar-nav">
-    @for(item of navItems;track item){
+    @for(item of filteredNavItems;track item){
           <a
       [routerLink]="item.route"
       routerLinkActive="active"
@@ -58,7 +58,7 @@
 
     <!-- Navigation Items -->
     <nav class="sidebar-nav">
-      @for(item of navItems;track item){
+      @for(item of filteredNavItems;track item){
             <a
         [routerLink]="item.route"
         routerLinkActive="active"
