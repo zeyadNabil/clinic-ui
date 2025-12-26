@@ -168,11 +168,13 @@ export class AppointmentService {
     // Map backend status to frontend status
     // Backend: PENDING, APPROVED, DENIED, CANCELLED, COMPLETED, SCHEDULED
     // Frontend: pending_approval, accepted, scheduled, completed, cancelled, denied
-    let status: Appointment['status'] = 'scheduled';
+    let status: Appointment['status'] = 'pending_approval';
     const backendStatus = backend.status?.toUpperCase() || '';
     if (backendStatus === 'PENDING') {
       status = 'pending_approval';
-    } else if (backendStatus === 'APPROVED' || backendStatus === 'SCHEDULED') {
+    } else if (backendStatus === 'APPROVED') {
+      status = 'accepted';          // <--- this fixes the issue
+    } else if (backendStatus === 'SCHEDULED') {
       status = 'scheduled';
     } else if (backendStatus === 'DENIED') {
       status = 'denied';
@@ -181,8 +183,9 @@ export class AppointmentService {
     } else if (backendStatus === 'COMPLETED') {
       status = 'completed';
     } else {
-      status = 'pending_approval'; // Default to pending for unknown statuses
+      status = 'pending_approval';
     }
+
 
     return {
       id: backend.id,
@@ -628,32 +631,40 @@ export class AppointmentService {
   // Fetch appointments by status from API (Admin only)
   // According to API: GET /appointments/admin/status/{status}
   // Note: This fetches from the backend API. For local filtering, use getAppointmentsByStatus() instead.
-  fetchAppointmentsByStatusFromApi(status: 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED' | 'COMPLETED' | 'SCHEDULED'): Observable<Appointment[]> {
-    return this.http.get<BackendAppointment[]>(`${this.apiUrl}/admin/status/${status}`, {
-      headers: this.getHeaders()
-    }).pipe(
-      map((appointments) => {
-        if (!appointments || !Array.isArray(appointments)) {
-          return [];
-        }
-        const mapped = appointments.map(apt => this.mapBackendToFrontend(apt));
-        // Optionally update local state with fetched appointments
-        const current = this.appointmentsSubject.value;
-        const updated = [...current];
-        mapped.forEach(apt => {
-          const index = updated.findIndex(a => a.id === apt.id);
-          if (index >= 0) {
-            updated[index] = apt;
-          } else {
-            updated.push(apt);
-          }
-        });
-        this.appointmentsSubject.next(updated);
-        return mapped;
-      }),
-      catchError(this.handleError)
-    );
-  }
+  // Fetch appointments by backend status from API (Admin only)
+fetchAppointmentsByStatusFromApi(
+  status: 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED' | 'COMPLETED' | 'SCHEDULED'
+): Observable<Appointment[]> {
+  if (!status) return of([]);
+
+  const url = `${this.apiUrl}/admin/status/${status}`;
+
+  return this.http.get<BackendAppointment[]>(url, { headers: this.getHeaders() }).pipe(
+    map((appointments) => {
+      if (!appointments || !Array.isArray(appointments)) return [];
+
+      const mapped = appointments.map(apt => this.mapBackendToFrontend(apt));
+
+      // Merge or update local state safely
+      const current = this.appointmentsSubject.value;
+      const updated = [...current];
+
+      mapped.forEach(apt => {
+        const index = updated.findIndex(a => a.id === apt.id);
+        if (index >= 0) updated[index] = apt;
+        else updated.push(apt);
+      });
+
+      this.appointmentsSubject.next(updated);
+      return mapped;
+    }),
+    catchError((err) => {
+      console.error('Error fetching appointments by status:', err);
+      return of([]);
+    })
+  );
+}
+
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'An unknown error occurred';
