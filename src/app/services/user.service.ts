@@ -38,7 +38,6 @@ export class UserService {
     if (userDataStr) {
       try {
         const userData = JSON.parse(userDataStr);
-        console.log('Loading user from localStorage (userData):', userData);
         // Prioritize name/username, never use email as name
         // Make sure we use name or username field, not email
         let displayName = userData.name || userData.username || 'User';
@@ -53,7 +52,6 @@ export class UserService {
           role: (userData.role || 'PATIENT').toUpperCase() as User['role'],
           doctorName: userData.role === 'DOCTOR' ? displayName : undefined
         };
-        console.log('Loaded user (name should not be email):', user);
         this.currentUserSubject.next(user);
         return;
       } catch (e) {
@@ -102,7 +100,6 @@ export class UserService {
       console.warn('Invalid name detected, using username or default:', user);
       user.name = user.name && user.name !== user.email ? user.name : (user.email ? 'User' : 'User');
     }
-    console.log('Setting current user (updating BehaviorSubject):', user);
     this.currentUserSubject.next(user);
     // Note: Actual storage is handled by TokenService.setUserData() in AuthService
   }

@@ -29,13 +29,25 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       catchError((error: HttpErrorResponse) => {
         // Handle 401 Unauthorized - token expired or invalid
         if (error.status === 401) {
+          console.error('401 Unauthorized - token expired or invalid');
           // Clear token and redirect to login
           tokenService.clearAll();
           router.navigate(['/login']);
         }
+        // Handle 403 Forbidden - user doesn't have permission
+        if (error.status === 403) {
+          console.error('403 Forbidden - user does not have permission for this action');
+          console.error('Request URL:', req.url);
+          console.error('User role from token:', tokenService.getRoleFromToken());
+        }
         return throwError(() => error);
       })
     );
+  }
+  
+  // If token exists but is invalid, log warning
+  if (token && !tokenService.isTokenValid() && !isAuthEndpoint) {
+    console.warn('Token exists but is invalid/expired. Request will be sent without Authorization header.');
   }
 
   // If token exists but is invalid, clear it

@@ -81,8 +81,6 @@ export class AuthService {
         if (userData.role) {
           this.tokenService.setUserRole(userData.role);
         }
-
-        console.log('Login successful. Token and user data stored in localStorage.');
       }),
       catchError(this.handleError)
     );
@@ -93,7 +91,6 @@ export class AuthService {
       tap(response => {
         // Registration response has token: null and expiresIn: 0
         // User needs to verify account before login
-        console.log('Registration successful. User needs to verify account.');
 
         // Store user data (but no token yet since registration doesn't return a token)
         const registeredUserData = {
@@ -133,15 +130,11 @@ export class AuthService {
   }
 
   logout(): void {
-    console.log('Logging out user - clearing all authentication data...');
-
     // Use TokenService to clear ALL auth data (includes token, role, userData, tokenExpiry)
     this.tokenService.clearAll();
 
     // Update BehaviorSubject to notify subscribers that user is logged out
     this.tokenSubject.next(null);
-
-    console.log('Logout complete. All authentication data removed from localStorage.');
   }
 
   getToken(): string | null {

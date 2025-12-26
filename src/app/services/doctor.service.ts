@@ -57,9 +57,6 @@ export class DoctorService {
     const userRole = this.authService.getUserRole();
     const token = this.authService.getToken();
 
-    console.log('getDoctorsList - User role:', userRole);
-    console.log('getDoctorsList - Has token:', !!token);
-
     // If user is admin or doctor, use the main endpoint and map to DTO
     if (userRole === 'ADMIN' || userRole === 'DOCTOR') {
       if (!token) {
@@ -72,17 +69,14 @@ export class DoctorService {
         'Content-Type': 'application/json'
       });
 
-      console.log('Calling /doctors endpoint for role:', userRole);
       return this.http.get<Doctor[]>(this.apiUrl, { headers }).pipe(
         tap((doctors: Doctor[] | null) => {
-          console.log('Received doctors from /doctors:', doctors);
           // Handle null or undefined response
           if (!doctors || !Array.isArray(doctors)) {
             console.warn('Doctors response is null or not an array:', doctors);
             this.doctorsSubject.next([]);
             return;
           }
-          console.log('Number of doctors received:', doctors.length);
           // Update BehaviorSubject with full doctor objects
           this.doctorsSubject.next(doctors);
         }),
@@ -97,7 +91,6 @@ export class DoctorService {
             name: d.name,
             consultationFee: d.consultationFee || 100.0
           }));
-          console.log('Mapped doctors:', mapped.length);
           return mapped;
         }),
         catchError((error) => {
@@ -118,13 +111,8 @@ export class DoctorService {
       'Content-Type': 'application/json'
     });
 
-    console.log('Calling /doctors/list endpoint for PATIENT');
     return this.http.get<DoctorNameDto[]>(`${this.apiUrl}/list`, { headers }).pipe(
       map((doctors: DoctorNameDto[] | null | undefined) => {
-        console.log('Received doctors from /list (raw):', doctors);
-        console.log('Type of doctors:', typeof doctors);
-        console.log('Is array?', Array.isArray(doctors));
-
         // Handle null or undefined response
         if (doctors == null) {
           console.warn('Doctors response is null or undefined');
@@ -137,8 +125,6 @@ export class DoctorService {
           this.doctorsSubject.next([]);
           return [];
         }
-
-        console.log('Number of doctors received:', doctors.length);
 
         // Update BehaviorSubject for patients (convert to Doctor format)
         try {
@@ -162,7 +148,6 @@ export class DoctorService {
             name: d.name,
             consultationFee: d.consultationFee || 100.0
           }));
-          console.log('Mapped doctors from /list:', mapped.length);
           return mapped;
         } catch (mapError) {
           console.error('Error mapping doctors in map:', mapError);
@@ -171,8 +156,6 @@ export class DoctorService {
       }),
       catchError((error: any) => {
         console.error('Error fetching doctors from /list:', error);
-        console.error('Error type:', typeof error);
-        console.error('Error status:', error?.status);
         // Set empty array on error and return empty array observable
         this.doctorsSubject.next([]);
         // Return empty array instead of throwing error
@@ -185,11 +168,9 @@ export class DoctorService {
   async loadDoctors(): Promise<void> {
     try {
       const userRole = this.authService.getUserRole();
-      console.log('loadDoctors - User role:', userRole);
 
       if (userRole === 'ADMIN' || userRole === 'DOCTOR') {
         const doctors = await this.getAllDoctorsAsync();
-        console.log('loadDoctors - Got doctors from getAllDoctorsAsync:', doctors?.length || 0);
         this.doctorsSubject.next(doctors || []);
       } else if (userRole === 'PATIENT') {
         // For patients, use getDoctorsList which calls /list endpoint
@@ -207,7 +188,6 @@ export class DoctorService {
             specialty: '',
             consultationFee: d.consultationFee || 100.0
           }));
-          console.log('loadDoctors - Got doctors from getDoctorsList:', doctors?.length || 0);
           this.doctorsSubject.next(doctors);
         } catch (error) {
           console.error('Error in loadDoctors for PATIENT:', error);

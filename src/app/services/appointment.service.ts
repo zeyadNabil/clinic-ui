@@ -90,7 +90,7 @@ export class AppointmentService {
           this.autoLoadTimeout = setTimeout(() => {
             this.loadAppointments().subscribe({
               next: () => {
-                console.log('Auto-loaded appointments successfully');
+                // Auto-loaded appointments successfully
               },
               error: (err) => {
                 console.error('Auto-load appointments error:', err);
@@ -309,8 +309,6 @@ export class AppointmentService {
       return this.appointments$;
     }
 
-    console.log(`Loading appointments from endpoint: ${endpoint} for role: ${userRole}`);
-
     // Fetch and map appointments
     return this.http.get<BackendAppointment[]>(endpoint, {
       headers: this.getHeaders()
@@ -340,10 +338,7 @@ export class AppointmentService {
           return [];
         }
 
-        console.log(`✓ Received ${appointments.length} appointments from backend`);
-
         if (appointments.length === 0) {
-          console.log('ℹ️ Backend returned empty array - user has no appointments');
           this.appointmentsSubject.next([]);
           this.isLoadingSubject.next(false);
           return [];
@@ -357,8 +352,6 @@ export class AppointmentService {
             return null;
           }
         }).filter(apt => apt !== null) as Appointment[];
-
-        console.log(`✓ Successfully mapped ${mapped.length} appointments`);
 
         // Update local state
         this.appointmentsSubject.next(mapped);
@@ -406,14 +399,10 @@ export class AppointmentService {
       amount: appointment.amount
     });
 
-    console.log('Creating appointment with request:', request);
-    console.log('Headers:', this.getHeaders());
-
     return this.http.post<BackendAppointment>(this.apiUrl, request, {
       headers: this.getHeaders()
     }).pipe(
       map((backendAppt) => {
-        console.log('Appointment creation response:', backendAppt);
         if (!backendAppt) {
           throw new Error('Empty response from server');
         }
@@ -583,8 +572,21 @@ export class AppointmentService {
   // Approve appointment (Admin only)
   // According to API: PUT /appointments/admin/{id}/approve
   approveAppointment(id: number): Observable<Appointment> {
+    const token = this.authService.getToken();
+    const headers = this.getHeaders();
+
+    if (!token) {
+      console.error('No token available for approve appointment');
+      return throwError(() => new Error('Authentication required. Please log in again.'));
+    }
+
+    if (!this.authService.isAuthenticated()) {
+      console.error('Token is invalid or expired');
+      return throwError(() => new Error('Your session has expired. Please log in again.'));
+    }
+
     return this.http.put<BackendAppointment>(`${this.apiUrl}/admin/${id}/approve`, {}, {
-      headers: this.getHeaders()
+      headers: headers
     }).pipe(
       map((backendAppt) => {
         const mapped = this.mapBackendToFrontend(backendAppt);
@@ -607,8 +609,21 @@ export class AppointmentService {
   // Deny appointment (Admin only)
   // According to API: PUT /appointments/admin/{id}/deny
   denyAppointment(id: number): Observable<Appointment> {
+    const token = this.authService.getToken();
+    const headers = this.getHeaders();
+
+    if (!token) {
+      console.error('No token available for deny appointment');
+      return throwError(() => new Error('Authentication required. Please log in again.'));
+    }
+
+    if (!this.authService.isAuthenticated()) {
+      console.error('Token is invalid or expired');
+      return throwError(() => new Error('Your session has expired. Please log in again.'));
+    }
+
     return this.http.put<BackendAppointment>(`${this.apiUrl}/admin/${id}/deny`, {}, {
-      headers: this.getHeaders()
+      headers: headers
     }).pipe(
       map((backendAppt) => {
         const mapped = this.mapBackendToFrontend(backendAppt);
