@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { jwtDecode } from 'jwt-decode';
+import { TokenService } from './token.service';
 
 export interface LoginRequest {
   email: string;
@@ -18,12 +18,17 @@ export interface RegisterRequest {
 }
 
 export interface LoginResponse {
-  token: string;
+  token: string | null; // null for registration, string for login
   expiresIn: number;
   email?: string;
   username?: string;
   name?: string;
   role?: string; // Add role from backend
+}
+
+export interface VerifyRequest {
+  email: string;
+  verificationCode: string;
 }
 
 export interface User {
@@ -38,31 +43,46 @@ export interface User {
 })
 export class AuthService {
   private apiUrl = `${environment.apiUrl}/auth`;
-  private tokenSubject = new BehaviorSubject<string | null>(this.getToken());
-  public token$ = this.tokenSubject.asObservable();
+  private tokenSubject: BehaviorSubject<string | null>;
+  public token$: Observable<string | null>;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private tokenService: TokenService
+  ) {
+    // Initialize after tokenService is available
+    this.tokenSubject = new BehaviorSubject<string | null>(this.tokenService.getToken());
+    this.token$ = this.tokenSubject.asObservable();
+  }
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/login`, credentials).pipe(
       tap(response => {
-        this.setToken(response.token);
+        // Validate response has required fields
+        if (!response.token) {
+          throw new Error('Login response missing token');
+        }
+
+        // Store token using TokenService (handles expiry)
+        this.tokenService.setToken(response.token, response.expiresIn);
         this.tokenSubject.next(response.token);
-        // Store full user info from login response including role
-        // The backend sends: email, username, name, role
-        // Prioritize username (which is the actual username field), then name, never email
-        console.log('Login response received:', response);
-        const displayName = response.username || response.name || 'User';
-        console.log('Display name determined:', displayName, 'from username:', response.username, 'name:', response.name);
-        const userInfo = {
+
+        // Prepare user data from response
+        // Backend sends: email, username, name, role
+        const userData = {
           email: response.email || '',
-          username: response.username || displayName, // Always store username from response
-          name: displayName, // Use username first, then name, never email
-          role: response.role || 'PATIENT' // Default to PATIENT if not provided
+          username: response.username || response.name || '',
+          name: response.name || response.username || 'User',
+          role: response.role || this.tokenService.getRoleFromToken() || 'PATIENT'
         };
-        console.log('Storing user info in localStorage:', userInfo);
-        localStorage.setItem('currentUser', JSON.stringify(userInfo));
-        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+
+        // Store user data and role using TokenService (stores in 'userData' key)
+        this.tokenService.setUserData(userData);
+        if (userData.role) {
+          this.tokenService.setUserRole(userData.role);
+        }
+
+        console.log('Login successful. Token and user data stored in localStorage.');
       }),
       catchError(this.handleError)
     );
@@ -70,58 +90,89 @@ export class AuthService {
 
   register(userData: RegisterRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/signup`, userData).pipe(
+      tap(response => {
+        // Registration response has token: null and expiresIn: 0
+        // User needs to verify account before login
+        console.log('Registration successful. User needs to verify account.');
+
+        // Store user data (but no token yet since registration doesn't return a token)
+        const registeredUserData = {
+          email: response.email || userData.email,
+          username: response.username || userData.username,
+          name: response.name || response.username || userData.username,
+          role: response.role || userData.role || 'PATIENT'
+        };
+
+        // Store user data (but not token since it's null)
+        // TokenService stores in 'userData' key
+        this.tokenService.setUserData(registeredUserData);
+        if (registeredUserData.role) {
+          this.tokenService.setUserRole(registeredUserData.role);
+        }
+      }),
+      catchError(this.handleError)
+    );
+  }
+
+  // Verify user account with verification code
+  verifyAccount(request: VerifyRequest): Observable<string> {
+    return this.http.post<string>(`${this.apiUrl}/verify`, request, {
+      responseType: 'text' as 'json'
+    }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  // Resend verification code
+  resendVerificationCode(email: string): Observable<string> {
+    return this.http.post<string>(`${this.apiUrl}/resend?email=${encodeURIComponent(email)}`, {}, {
+      responseType: 'text' as 'json'
+    }).pipe(
       catchError(this.handleError)
     );
   }
 
   logout(): void {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userInfo');
-    localStorage.removeItem('currentUser');
+    console.log('Logging out user - clearing all authentication data...');
+
+    // Use TokenService to clear ALL auth data (includes token, role, userData, tokenExpiry)
+    this.tokenService.clearAll();
+
+    // Update BehaviorSubject to notify subscribers that user is logged out
     this.tokenSubject.next(null);
+
+    console.log('Logout complete. All authentication data removed from localStorage.');
   }
 
   getToken(): string | null {
-    return localStorage.getItem('token');
-  }
-
-  private setToken(token: string): void {
-    localStorage.setItem('token', token);
+    return this.tokenService.getToken();
   }
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    return this.tokenService.isTokenValid();
   }
 
   getUserRole(): 'ADMIN' | 'PATIENT' | 'DOCTOR' | null {
-    const token = this.getToken();
-    if (token) {
-      try {
-        const decodedToken: any = jwtDecode(token);
-        console.log('Decoded token role:', decodedToken.role);
-        // Handle both 'ROLE_PATIENT', 'ROLE_ROLE_PATIENT', and 'PATIENT' formats
-        let role = decodedToken.role || null;
-        if (role) {
-          // Remove ALL ROLE_ prefixes (case-insensitive) - handles ROLE_ROLE_PATIENT case
-          // Use a while loop to remove all occurrences at the start
-          while (role && /^ROLE_/i.test(role)) {
-            role = role.replace(/^ROLE_/i, '');
-          }
-          role = role.toUpperCase();
-          console.log('Role after removing all ROLE_ prefixes:', role);
-          // Validate it's one of the expected roles
-          if (['ADMIN', 'PATIENT', 'DOCTOR'].includes(role)) {
-            return role as 'ADMIN' | 'PATIENT' | 'DOCTOR';
-          } else {
-            console.warn('Unknown role format after normalization:', role);
-          }
-        }
-        return null;
-      } catch (e) {
-        console.error('Error decoding token for role:', e);
-        return null;
-      }
+    // First try to get role from TokenService stored role
+    const storedRole = this.tokenService.getUserRole();
+    if (storedRole && ['ADMIN', 'PATIENT', 'DOCTOR'].includes(storedRole)) {
+      return storedRole as 'ADMIN' | 'PATIENT' | 'DOCTOR';
     }
+
+    // Fallback to getting role from token
+    const roleFromToken = this.tokenService.getRoleFromToken();
+    if (roleFromToken && ['ADMIN', 'PATIENT', 'DOCTOR'].includes(roleFromToken)) {
+      // Store it for future use
+      this.tokenService.setUserRole(roleFromToken);
+      return roleFromToken as 'ADMIN' | 'PATIENT' | 'DOCTOR';
+    }
+
+    // Fallback to user data
+    const userData = this.tokenService.getUserData();
+    if (userData?.role && ['ADMIN', 'PATIENT', 'DOCTOR'].includes(userData.role.toUpperCase())) {
+      return userData.role.toUpperCase() as 'ADMIN' | 'PATIENT' | 'DOCTOR';
+    }
+
     return null;
   }
 

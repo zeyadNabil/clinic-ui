@@ -32,12 +32,13 @@ export class UserService {
   }
 
   private loadUser() {
-    // First try to get from currentUser (set during login)
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (currentUserStr) {
+    // First try to get from userData (stored by TokenService)
+    // TokenService uses 'userData' as the key
+    const userDataStr = localStorage.getItem('userData');
+    if (userDataStr) {
       try {
-        const userData = JSON.parse(currentUserStr);
-        console.log('Loading user from localStorage:', userData);
+        const userData = JSON.parse(userDataStr);
+        console.log('Loading user from localStorage (userData):', userData);
         // Prioritize name/username, never use email as name
         // Make sure we use name or username field, not email
         let displayName = userData.name || userData.username || 'User';
@@ -56,7 +57,7 @@ export class UserService {
         this.currentUserSubject.next(user);
         return;
       } catch (e) {
-        console.error('Failed to parse currentUser:', e);
+        console.error('Failed to parse userData:', e);
       }
     }
 
@@ -66,19 +67,10 @@ export class UserService {
       try {
         const decodedToken: any = jwtDecode(token);
         const role = decodedToken.role?.replace('ROLE_', '') || 'PATIENT';
-        // Try to get name from token, or from userInfo in localStorage as fallback
-        const userInfoStr = localStorage.getItem('userInfo');
-        let userName = decodedToken.name;
-        if (!userName && userInfoStr) {
-          try {
-            const userInfo = JSON.parse(userInfoStr);
-            userName = userInfo.name || userInfo.username;
-          } catch (e) {
-            // Ignore parse error
-          }
-        }
+        // Try to get name from token
+        let userName = decodedToken.name || decodedToken.username;
         // Never use email as name - use username or empty string
-        const displayName = userName || decodedToken.username || 'User';
+        const displayName = userName || 'User';
         const user: User = {
           name: displayName,
           email: decodedToken.sub || decodedToken.email || '',
@@ -102,15 +94,17 @@ export class UserService {
   }
 
   // Set current user (called from login)
+  // Note: User data should be stored via TokenService.setUserData() which uses 'userData' key
+  // This method only updates the BehaviorSubject for immediate UI updates
   setCurrentUser(user: User): void {
     // Ensure name is never the email
     if (user.name === user.email || !user.name || user.name.trim() === '') {
       console.warn('Invalid name detected, using username or default:', user);
       user.name = user.name && user.name !== user.email ? user.name : (user.email ? 'User' : 'User');
     }
-    console.log('Setting current user with name (not email):', user);
+    console.log('Setting current user (updating BehaviorSubject):', user);
     this.currentUserSubject.next(user);
-    localStorage.setItem('currentUser', JSON.stringify(user));
+    // Note: Actual storage is handled by TokenService.setUserData() in AuthService
   }
 
   // Check if user is admin

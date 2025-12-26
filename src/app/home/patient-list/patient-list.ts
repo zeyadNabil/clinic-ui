@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { UserService, User } from '../../services/user.service';
 import { Subscription } from 'rxjs';
 
@@ -17,7 +18,7 @@ interface Patient {
 
 @Component({
   selector: 'app-patient-list',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './patient-list.html',
   styleUrl: './patient-list.css',
 })
@@ -71,6 +72,9 @@ export class PatientListComponent implements OnInit, OnDestroy {
       this.patients = JSON.parse(saved);
     } else {
       // Only use sample data the first time
+      const today = new Date();
+      const thisMonth = today.toISOString().split('T')[0].substring(0, 7);
+      
       this.patients = [
         {
           id: 1,
@@ -80,7 +84,7 @@ export class PatientListComponent implements OnInit, OnDestroy {
           email: 'john.doe@email.com',
           age: 34,
           gender: 'Male',
-          registeredDate: '2024-12-15'
+          registeredDate: `${thisMonth}-15`
         },
         {
           id: 2,
@@ -90,7 +94,7 @@ export class PatientListComponent implements OnInit, OnDestroy {
           email: 'sarah.miller@email.com',
           age: 28,
           gender: 'Female',
-          registeredDate: '2024-12-16'
+          registeredDate: `${thisMonth}-16`
         },
         {
           id: 3,
@@ -100,7 +104,7 @@ export class PatientListComponent implements OnInit, OnDestroy {
           email: 'robert.johnson@email.com',
           age: 45,
           gender: 'Male',
-          registeredDate: '2024-12-17'
+          registeredDate: `${thisMonth}-17`
         },
         {
           id: 4,
@@ -110,7 +114,7 @@ export class PatientListComponent implements OnInit, OnDestroy {
           email: 'emily.davis@email.com',
           age: 31,
           gender: 'Female',
-          registeredDate: '2024-12-18'
+          registeredDate: `${thisMonth}-18`
         },
         {
           id: 5,
@@ -120,7 +124,7 @@ export class PatientListComponent implements OnInit, OnDestroy {
           email: 'michael.wilson@email.com',
           age: 52,
           gender: 'Male',
-          registeredDate: '2024-12-19'
+          registeredDate: `${thisMonth}-19`
         },
         {
           id: 6,
@@ -130,7 +134,47 @@ export class PatientListComponent implements OnInit, OnDestroy {
           email: 'lisa.anderson@email.com',
           age: 29,
           gender: 'Female',
-          registeredDate: '2024-12-20'
+          registeredDate: `${thisMonth}-20`
+        },
+        {
+          id: 7,
+          patientName: 'David Brown',
+          patientInitials: 'DB',
+          phone: '+1 234-567-8906',
+          email: 'david.brown@email.com',
+          age: 38,
+          gender: 'Male',
+          registeredDate: `${thisMonth}-21`
+        },
+        {
+          id: 8,
+          patientName: 'Jennifer Taylor',
+          patientInitials: 'JT',
+          phone: '+1 234-567-8907',
+          email: 'jennifer.taylor@email.com',
+          age: 42,
+          gender: 'Female',
+          registeredDate: `${thisMonth}-22`
+        },
+        {
+          id: 9,
+          patientName: 'James Martinez',
+          patientInitials: 'JM',
+          phone: '+1 234-567-8908',
+          email: 'james.martinez@email.com',
+          age: 35,
+          gender: 'Male',
+          registeredDate: `${thisMonth}-23`
+        },
+        {
+          id: 10,
+          patientName: 'Maria Garcia',
+          patientInitials: 'MG',
+          phone: '+1 234-567-8909',
+          email: 'maria.garcia@email.com',
+          age: 27,
+          gender: 'Female',
+          registeredDate: `${thisMonth}-24`
         }
       ];
       this.savePatients(); // Save sample data first time
@@ -146,7 +190,7 @@ export class PatientListComponent implements OnInit, OnDestroy {
   }
 
   get isAdmin(): boolean {
-    return this.user?.role === 'admin';
+    return this.user?.role === 'ADMIN';
   }
 
   openCreateModal() {

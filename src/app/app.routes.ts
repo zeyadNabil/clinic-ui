@@ -33,11 +33,23 @@ export const routes: Routes = [
   },
   {
     path: 'patient-list',
-    loadComponent: () => import('./home/patient-list/patient-list').then(c => c.PatientListComponent)
+    loadComponent: () => import('./home/patient-list/patient-list').then(c => c.PatientListComponent),
+    canActivate: [authGuard]
   },
   {
-    path: 'message',  
-    loadComponent: () => import('./home/message/message').then(c => c.MessagesComponent)
+    path: 'patients',
+    loadComponent: () => import('./home/patient-list/patient-list').then(c => c.PatientListComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'messages',
+    loadComponent: () => import('./home/message/message').then(c => c.MessagesComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'message',
+    redirectTo: '/messages',
+    pathMatch: 'full'
   },
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
   { path: '**', redirectTo: '/auth/login' }               

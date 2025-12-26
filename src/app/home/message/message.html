@@ -5,12 +5,12 @@
       <div>
         <h1>Messages</h1>
         <p class="text-muted">
-          @if (user?.role === 'admin') { All clinic notifications }
-          @else if (user?.role === 'doctor') { Your appointment and patient updates }
+          @if (user?.role === 'ADMIN') { All clinic notifications }
+          @else if (user?.role === 'DOCTOR') { Your appointment and patient updates }
           @else { Your personal notifications }
         </p>
       </div>
-      @if (user?.role === 'admin') {
+      @if (user?.role === 'ADMIN') {
         <button class="btn btn-primary" (click)="openSendModal()">
           <i class="fas fa-paper-plane me-2"></i>Send Message
         </button>
@@ -102,7 +102,7 @@
                             Mark as read
                           </button>
                         }
-                        @if (user?.role === 'admin') {
+                        @if (user?.role === 'ADMIN') {
                           <button class="btn btn-sm btn-outline-info" (click)="openReplyModal(msg)">
                             <i class="fas fa-reply"></i> Reply
                           </button>

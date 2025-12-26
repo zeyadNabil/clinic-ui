@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError, timer } from 'rxjs';
+import { BehaviorSubject, Observable, throwError, of, timer } from 'rxjs';
 import { catchError, tap, map, retry, retryWhen, delayWhen, take, first } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
@@ -28,11 +28,12 @@ export interface Appointment {
   paymentId?: number;
 }
 
-// Backend appointment structure
+// Backend appointment structure (matches API response)
 interface BackendAppointment {
   id: number;
   reason: string;
   appointmentTime: string; // ISO datetime string
+  dateTime?: string; // ISO datetime string (sometimes included in response)
   patient: {
     id: number;
     username: string;
@@ -44,10 +45,10 @@ interface BackendAppointment {
     email: string;
     specialty: string;
   };
-  status: string;
-  paymentMethod?: string;
+  status: string; // PENDING, APPROVED, DENIED, CANCELLED, COMPLETED, SCHEDULED
+  paymentMethod?: string; // CASH or VISA
   amount?: number;
-  paymentStatus?: string;
+  paymentStatus?: string; // pending, paid, failed
 }
 
 interface AppointmentRequest {
@@ -83,12 +84,17 @@ export class AppointmentService {
         if (this.autoLoadTimeout) {
           clearTimeout(this.autoLoadTimeout);
         }
-        
+
         // If we have no appointments and haven't loaded yet, auto-load
         if (this.appointmentsSubject.value.length === 0 && !this.isLoadingSubject.value) {
           this.autoLoadTimeout = setTimeout(() => {
-            this.loadAppointments().catch(err => {
-              console.error('Auto-load appointments error:', err);
+            this.loadAppointments().subscribe({
+              next: () => {
+                console.log('Auto-loaded appointments successfully');
+              },
+              error: (err) => {
+                console.error('Auto-load appointments error:', err);
+              }
             });
           }, 300);
         }
@@ -96,42 +102,22 @@ export class AppointmentService {
     });
   }
 
+  /**
+   * Get HTTP headers with authentication token
+   * Note: The auth interceptor automatically injects the token for all HTTP requests,
+   * but we keep this method for explicit header control and as a fallback
+   */
   private getHeaders(): HttpHeaders {
     const token = this.authService.getToken();
-    if (!token) {
-      throw new Error('No authentication token available');
+    const headers: { [key: string]: string } = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
+    return new HttpHeaders(headers);
   }
 
-  // Wait for authentication and user to be ready
-  private waitForAuth(maxRetries = 20, delayMs = 150): Promise<boolean> {
-    return new Promise((resolve) => {
-      let retries = 0;
-      const checkAuth = () => {
-        const token = this.authService.getToken();
-        const isAuth = this.authService.isAuthenticated();
-        const user = this.userService.getCurrentUser();
-        const role = this.authService.getUserRole();
-        
-        // Need token, auth status, user object, and role
-        if (isAuth && token && user && role) {
-          resolve(true);
-          return;
-        }
-        if (retries < maxRetries) {
-          retries++;
-          setTimeout(checkAuth, delayMs);
-        } else {
-          resolve(false);
-        }
-      };
-      checkAuth();
-    });
-  }
 
 
   // Convert backend appointment to frontend format
@@ -144,20 +130,20 @@ export class AppointmentService {
       // Fallback to current date/time if null
       appointmentTime = new Date();
     }
-    
+
     const date = appointmentTime.toISOString().split('T')[0];
     const hours = appointmentTime.getHours();
     const minutes = appointmentTime.getMinutes();
     const hour12 = hours % 12 || 12;
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const time = `${hour12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-    
+
     // Get patient name - prioritize username field (actual username, not email)
     // Only fall back to email if username is null, empty, or looks like an email
     let patientName: string;
     const username = backend.patient?.username;
     const email = backend.patient?.email;
-    
+
     if (username && username.trim() !== '' && !username.includes('@')) {
       // Use username if it exists, is not empty, and doesn't look like an email
       patientName = username.trim();
@@ -180,12 +166,23 @@ export class AppointmentService {
     const doctorId = backend.doctor?.id || 0;
 
     // Map backend status to frontend status
+    // Backend: PENDING, APPROVED, DENIED, CANCELLED, COMPLETED, SCHEDULED
+    // Frontend: pending_approval, accepted, scheduled, completed, cancelled, denied
     let status: Appointment['status'] = 'scheduled';
-    const backendStatus = backend.status?.toLowerCase() || '';
-    if (backendStatus.includes('scheduled')) status = 'scheduled';
-    else if (backendStatus.includes('cancelled')) status = 'cancelled';
-    else if (backendStatus.includes('completed')) status = 'completed';
-    else status = 'scheduled';
+    const backendStatus = backend.status?.toUpperCase() || '';
+    if (backendStatus === 'PENDING') {
+      status = 'pending_approval';
+    } else if (backendStatus === 'APPROVED' || backendStatus === 'SCHEDULED') {
+      status = 'scheduled';
+    } else if (backendStatus === 'DENIED') {
+      status = 'denied';
+    } else if (backendStatus === 'CANCELLED') {
+      status = 'cancelled';
+    } else if (backendStatus === 'COMPLETED') {
+      status = 'completed';
+    } else {
+      status = 'pending_approval'; // Default to pending for unknown statuses
+    }
 
     return {
       id: backend.id,
@@ -207,12 +204,45 @@ export class AppointmentService {
   }
 
   // Convert frontend appointment to backend format
+  // According to API: appointmentTime should be ISO datetime string (e.g., "2024-12-25T10:00:00")
   private mapFrontendToBackend(appointment: Partial<Appointment>): AppointmentRequest {
-    // Combine date and time into ISO datetime string
-    const dateTime = new Date(`${appointment.date}T${appointment.time}`);
+    let appointmentTime: string;
+
+    if (appointment.date && appointment.time) {
+      // Handle time format - could be "10:00 AM" or "10:00:00"
+      let timeStr = appointment.time.trim();
+      let hours: number, minutes: number;
+
+      // Check if it's 12-hour format (contains AM/PM)
+      if (timeStr.includes('AM') || timeStr.includes('PM')) {
+        const [time, modifier] = timeStr.split(' ');
+        const [h, m] = time.split(':');
+        hours = parseInt(h, 10);
+        minutes = parseInt(m, 10);
+
+        if (modifier === 'PM' && hours !== 12) {
+          hours += 12;
+        } else if (modifier === 'AM' && hours === 12) {
+          hours = 0;
+        }
+      } else {
+        // 24-hour format
+        const [h, m] = timeStr.split(':');
+        hours = parseInt(h, 10);
+        minutes = parseInt(m, 10);
+      }
+
+      // Create ISO datetime string: "YYYY-MM-DDTHH:mm:ss"
+      const dateStr = appointment.date; // Should be in format "YYYY-MM-DD"
+      appointmentTime = `${dateStr}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+    } else {
+      // Fallback to current time if date/time not provided
+      appointmentTime = new Date().toISOString();
+    }
+
     return {
       doctorId: appointment.doctorId || 0,
-      appointmentTime: dateTime.toISOString(),
+      appointmentTime: appointmentTime,
       reason: appointment.reason || appointment.type || '',
       paymentMethod: appointment.paymentMethod || 'CASH',
       amount: appointment.amount || 100.0
@@ -220,110 +250,136 @@ export class AppointmentService {
   }
 
   // Load appointments from backend
-  async loadAppointments(): Promise<void> {
+  loadAppointments(): Observable<Appointment[]> {
     // Prevent multiple simultaneous loads
     if (this.isLoadingSubject.value) {
-      return;
+      return this.appointments$;
     }
-
-    // Mark that we've attempted to load
-    this.loadAttempted = true;
 
     // Set loading state
     this.isLoadingSubject.next(true);
+    this.loadAttempted = true;
 
-    try {
-      // Wait for authentication to be ready (with retry)
-      const isAuthenticated = await this.waitForAuth();
-      if (!isAuthenticated) {
-        console.warn('Authentication not ready after retries');
-        this.appointmentsSubject.next([]);
-        this.isLoadingSubject.next(false);
-        return;
-      }
-
-      // Check authentication
-      const token = this.authService.getToken();
-      if (!token) {
-        console.warn('No token available');
-        this.appointmentsSubject.next([]);
-        this.isLoadingSubject.next(false);
-        return;
-      }
-
-      if (!this.authService.isAuthenticated()) {
-        console.warn('User not authenticated');
-        this.appointmentsSubject.next([]);
-        this.isLoadingSubject.next(false);
-        return;
-      }
-
-      // Get and normalize user role
-      let userRole = this.authService.getUserRole();
-      if (!userRole) {
-        console.warn('No user role found');
-        this.appointmentsSubject.next([]);
-        this.isLoadingSubject.next(false);
-        return;
-      }
-
-      // Normalize role - remove all ROLE_ prefixes
-      while (userRole && /^ROLE_/i.test(userRole)) {
-        userRole = userRole.replace(/^ROLE_/i, '') as 'ADMIN' | 'PATIENT' | 'DOCTOR' | null;
-      }
-      userRole = userRole?.toUpperCase() as 'ADMIN' | 'PATIENT' | 'DOCTOR' | null;
-      
-      // Determine endpoint based on role
-      let endpoint: string;
-      if (userRole === 'PATIENT') {
-        endpoint = `${this.apiUrl}/my`;
-      } else if (userRole === 'DOCTOR') {
-        endpoint = `${this.apiUrl}/doctor/my`;
-      } else if (userRole === 'ADMIN') {
-        endpoint = this.apiUrl;
-      } else {
-        console.warn('Unknown user role:', userRole);
-        this.appointmentsSubject.next([]);
-        this.isLoadingSubject.next(false);
-        return;
-      }
-
-      // Fetch and map appointments
-      this.http.get<BackendAppointment[]>(endpoint, { headers: this.getHeaders() }).pipe(
-        map((appointments) => {
-          if (!appointments || !Array.isArray(appointments)) {
-            return [];
-          }
-          const mapped = appointments.map(apt => {
-            try {
-              return this.mapBackendToFrontend(apt);
-            } catch (error) {
-              console.error('Error mapping appointment:', apt, error);
-              return null;
-            }
-          }).filter(apt => apt !== null) as Appointment[];
-          return mapped;
-        }),
-        catchError((error) => {
-          console.error('Failed to load appointments:', error);
-          return throwError(() => error);
-        })
-      ).subscribe({
-        next: (appointments) => {
-          this.appointmentsSubject.next(appointments);
-          this.isLoadingSubject.next(false);
-        },
-        error: (error) => {
-          console.error('Error in appointments subscription:', error);
-          this.appointmentsSubject.next([]);
-          this.isLoadingSubject.next(false);
-        }
-      });
-    } catch (error) {
-      console.error('Error setting up appointments request:', error);
+    // Check authentication first
+    if (!this.authService.isAuthenticated()) {
+      console.warn('User not authenticated - cannot load appointments');
       this.appointmentsSubject.next([]);
       this.isLoadingSubject.next(false);
+      return this.appointments$;
     }
+
+    const token = this.authService.getToken();
+    if (!token) {
+      console.warn('No token available - cannot load appointments');
+      this.appointmentsSubject.next([]);
+      this.isLoadingSubject.next(false);
+      return this.appointments$;
+    }
+
+    // Get and normalize user role
+    let userRole = this.authService.getUserRole();
+    if (!userRole) {
+      console.warn('No user role found - cannot determine endpoint');
+      this.appointmentsSubject.next([]);
+      this.isLoadingSubject.next(false);
+      return this.appointments$;
+    }
+
+    // Normalize role - remove all ROLE_ prefixes
+    while (userRole && /^ROLE_/i.test(userRole)) {
+      userRole = userRole.replace(/^ROLE_/i, '') as 'ADMIN' | 'PATIENT' | 'DOCTOR' | null;
+    }
+    userRole = userRole?.toUpperCase() as 'ADMIN' | 'PATIENT' | 'DOCTOR' | null;
+
+    // Determine endpoint based on role (according to API docs)
+    let endpoint: string;
+    if (userRole === 'PATIENT') {
+      endpoint = `${this.apiUrl}/my`; // GET /appointments/my
+    } else if (userRole === 'DOCTOR') {
+      endpoint = `${this.apiUrl}/doctor/my`; // GET /appointments/doctor/my
+    } else if (userRole === 'ADMIN') {
+      endpoint = `${this.apiUrl}/admin/all`; // GET /appointments/admin/all
+    } else {
+      console.warn('Unknown user role:', userRole);
+      this.appointmentsSubject.next([]);
+      this.isLoadingSubject.next(false);
+      return this.appointments$;
+    }
+
+    console.log(`Loading appointments from endpoint: ${endpoint} for role: ${userRole}`);
+
+    // Fetch and map appointments
+    return this.http.get<BackendAppointment[]>(endpoint, {
+      headers: this.getHeaders()
+    }).pipe(
+      map((appointments) => {
+        // Handle null or undefined response (backend issue)
+        if (appointments === null || appointments === undefined) {
+          console.error('⚠️ Backend returned null or undefined response');
+          console.error('This indicates a backend issue - the endpoint should return at least an empty array []');
+          console.error('Please check:');
+          console.error('1. Backend endpoint implementation for GET /appointments/my');
+          console.error('2. Backend logs for errors');
+          console.error('3. Database query is returning results');
+          this.appointmentsSubject.next([]);
+          this.isLoadingSubject.next(false);
+          return [];
+        }
+
+        // Check if response is an array
+        if (!Array.isArray(appointments)) {
+          console.error('⚠️ Backend response is not an array:', appointments);
+          console.error('Response type:', typeof appointments);
+          console.error('Expected: Array of appointments');
+          console.error('Received:', appointments);
+          this.appointmentsSubject.next([]);
+          this.isLoadingSubject.next(false);
+          return [];
+        }
+
+        console.log(`✓ Received ${appointments.length} appointments from backend`);
+
+        if (appointments.length === 0) {
+          console.log('ℹ️ Backend returned empty array - user has no appointments');
+          this.appointmentsSubject.next([]);
+          this.isLoadingSubject.next(false);
+          return [];
+        }
+
+        const mapped = appointments.map((apt, index) => {
+          try {
+            return this.mapBackendToFrontend(apt);
+          } catch (error) {
+            console.error(`✗ Error mapping appointment ${index + 1}:`, apt, error);
+            return null;
+          }
+        }).filter(apt => apt !== null) as Appointment[];
+
+        console.log(`✓ Successfully mapped ${mapped.length} appointments`);
+
+        // Update local state
+        this.appointmentsSubject.next(mapped);
+        this.isLoadingSubject.next(false);
+
+        return mapped;
+      }),
+      catchError((error) => {
+        console.error('✗ Failed to load appointments:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          error: error.error,
+          url: error.url
+        });
+
+        this.appointmentsSubject.next([]);
+        this.isLoadingSubject.next(false);
+
+        // Return empty array instead of throwing to prevent breaking the app
+        return of([]);
+      })
+    );
   }
 
   // Get all appointments
@@ -350,7 +406,7 @@ export class AppointmentService {
     console.log('Creating appointment with request:', request);
     console.log('Headers:', this.getHeaders());
 
-    return this.http.post<BackendAppointment>(this.apiUrl, request, { 
+    return this.http.post<BackendAppointment>(this.apiUrl, request, {
       headers: this.getHeaders()
     }).pipe(
       map((backendAppt) => {
@@ -366,7 +422,9 @@ export class AppointmentService {
       }),
       tap(() => {
         // Reload appointments to ensure sync with backend (after immediate update)
-        this.loadAppointments().catch(err => console.error('Error reloading after create:', err));
+        this.loadAppointments().subscribe({
+          error: (err) => console.error('Error reloading after create:', err)
+        });
       }),
       catchError((error) => {
         console.error('Error creating appointment - full error:', error);
@@ -391,17 +449,17 @@ export class AppointmentService {
     // This is a synchronous method for backward compatibility
     // But we should use createAppointment instead
     const appointments = this.appointmentsSubject.value;
-    const newId = appointments.length > 0 
-      ? Math.max(...appointments.map(a => a.id)) + 1 
+    const newId = appointments.length > 0
+      ? Math.max(...appointments.map(a => a.id)) + 1
       : 1;
-    
+
     const newAppointment: Appointment = {
       ...appointment,
       id: newId,
       paymentStatus: 'pending',
       amount: appointment.amount || 0
     };
-    
+
     const updatedAppointments = [...appointments, newAppointment];
     this.appointmentsSubject.next(updatedAppointments);
     return newAppointment;
@@ -435,7 +493,7 @@ export class AppointmentService {
       // If only one is updated, combine with existing
       const existingDate = updates.date || appointment.date;
       let existingTime = updates.time || appointment.time;
-      
+
       // Convert 12-hour time to 24-hour if needed
       if (existingTime.includes('AM') || existingTime.includes('PM')) {
         const [time, modifier] = existingTime.split(' ');
@@ -447,7 +505,7 @@ export class AppointmentService {
         }
         existingTime = `${hours.padStart(2, '0')}:${minutes}`;
       }
-      
+
       const dateTime = new Date(`${existingDate}T${existingTime}`);
       updatePayload.appointmentTime = dateTime.toISOString();
     }
@@ -473,7 +531,9 @@ export class AppointmentService {
     ).subscribe({
       next: () => {
         // Reload appointments to ensure sync with backend
-        this.loadAppointments().catch(err => console.error('Error reloading after update:', err));
+        this.loadAppointments().subscribe({
+          error: (err) => console.error('Error reloading after update:', err)
+        });
       },
       error: (error) => {
         console.error('Failed to update appointment:', error);
@@ -482,61 +542,122 @@ export class AppointmentService {
   }
 
   // Map frontend status to backend status
+  // Backend expects: PENDING, APPROVED, DENIED, CANCELLED, COMPLETED, SCHEDULED
   private mapStatusToBackend(status: string): string {
     const statusMap: { [key: string]: string } = {
-      'pending_approval': 'Scheduled',
-      'accepted': 'Scheduled',
-      'scheduled': 'Scheduled',
-      'completed': 'Completed',
-      'cancelled': 'Cancelled',
-      'denied': 'Cancelled'
+      'pending_approval': 'PENDING',
+      'accepted': 'APPROVED',
+      'scheduled': 'SCHEDULED',
+      'completed': 'COMPLETED',
+      'cancelled': 'CANCELLED',
+      'denied': 'DENIED'
     };
-    return statusMap[status] || 'Scheduled';
+    return statusMap[status] || 'PENDING';
   }
 
-  // Delete appointment
-  deleteAppointment(id: number): void {
-    // Determine endpoint based on user role
-    const role = this.authService.getUserRole();
-    let normalizedRole: string | null = role;
-    
-    // Normalize role - remove all ROLE_ prefixes
-    while (normalizedRole && /^ROLE_/i.test(normalizedRole)) {
-      normalizedRole = normalizedRole.replace(/^ROLE_/i, '');
-    }
-    normalizedRole = normalizedRole ? normalizedRole.toUpperCase() : null;
-    
-    // Use admin endpoint for ADMIN, regular endpoint for PATIENT
-    const isAdmin = normalizedRole === 'ADMIN';
-    const endpoint = isAdmin 
-      ? `${this.apiUrl}/admin/${id}`
-      : `${this.apiUrl}/${id}`;
-    
-    this.http.delete(endpoint, {
+  // Delete appointment (Cancel appointment)
+  // According to API: DELETE /appointments/{id} - PATIENT can only cancel their own
+  // Token interceptor will automatically add Authorization header
+  deleteAppointment(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`, {
       headers: this.getHeaders()
     }).pipe(
-      catchError(this.handleError)
-    ).subscribe({
-      next: () => {
+      tap(() => {
         // Remove from local state immediately
         const current = this.appointmentsSubject.value;
         const updated = current.filter(apt => apt.id !== id);
         this.appointmentsSubject.next(updated);
-        
+
         // Reload appointments to ensure sync with backend
-        this.loadAppointments().catch(err => console.error('Error reloading after delete:', err));
-      },
-      error: (error) => {
-        console.error('Failed to delete appointment:', error);
-        // Show error to user
-        alert('Failed to delete appointment: ' + (error.error?.message || error.message || 'Unknown error'));
-      }
-    });
+        this.loadAppointments().subscribe({
+          error: (err) => console.error('Error reloading after delete:', err)
+        });
+      }),
+      catchError(this.handleError)
+    );
+  }
+
+  // Approve appointment (Admin only)
+  // According to API: PUT /appointments/admin/{id}/approve
+  approveAppointment(id: number): Observable<Appointment> {
+    return this.http.put<BackendAppointment>(`${this.apiUrl}/admin/${id}/approve`, {}, {
+      headers: this.getHeaders()
+    }).pipe(
+      map((backendAppt) => {
+        const mapped = this.mapBackendToFrontend(backendAppt);
+        // Update local state immediately
+        const current = this.appointmentsSubject.value;
+        const updated = current.map(apt => apt.id === id ? mapped : apt);
+        this.appointmentsSubject.next(updated);
+        return mapped;
+      }),
+      tap(() => {
+        // Reload appointments to ensure sync with backend
+        this.loadAppointments().subscribe({
+          error: (err) => console.error('Error reloading after approve:', err)
+        });
+      }),
+      catchError(this.handleError)
+    );
+  }
+
+  // Deny appointment (Admin only)
+  // According to API: PUT /appointments/admin/{id}/deny
+  denyAppointment(id: number): Observable<Appointment> {
+    return this.http.put<BackendAppointment>(`${this.apiUrl}/admin/${id}/deny`, {}, {
+      headers: this.getHeaders()
+    }).pipe(
+      map((backendAppt) => {
+        const mapped = this.mapBackendToFrontend(backendAppt);
+        // Update local state immediately
+        const current = this.appointmentsSubject.value;
+        const updated = current.map(apt => apt.id === id ? mapped : apt);
+        this.appointmentsSubject.next(updated);
+        return mapped;
+      }),
+      tap(() => {
+        // Reload appointments to ensure sync with backend
+        this.loadAppointments().subscribe({
+          error: (err) => console.error('Error reloading after deny:', err)
+        });
+      }),
+      catchError(this.handleError)
+    );
+  }
+
+  // Fetch appointments by status from API (Admin only)
+  // According to API: GET /appointments/admin/status/{status}
+  // Note: This fetches from the backend API. For local filtering, use getAppointmentsByStatus() instead.
+  fetchAppointmentsByStatusFromApi(status: 'PENDING' | 'APPROVED' | 'DENIED' | 'CANCELLED' | 'COMPLETED' | 'SCHEDULED'): Observable<Appointment[]> {
+    return this.http.get<BackendAppointment[]>(`${this.apiUrl}/admin/status/${status}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      map((appointments) => {
+        if (!appointments || !Array.isArray(appointments)) {
+          return [];
+        }
+        const mapped = appointments.map(apt => this.mapBackendToFrontend(apt));
+        // Optionally update local state with fetched appointments
+        const current = this.appointmentsSubject.value;
+        const updated = [...current];
+        mapped.forEach(apt => {
+          const index = updated.findIndex(a => a.id === apt.id);
+          if (index >= 0) {
+            updated[index] = apt;
+          } else {
+            updated.push(apt);
+          }
+        });
+        this.appointmentsSubject.next(updated);
+        return mapped;
+      }),
+      catchError(this.handleError)
+    );
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'An unknown error occurred';
-    
+
     if (error.error instanceof ErrorEvent) {
       errorMessage = `Error: ${error.error.message}`;
     } else {
@@ -548,7 +669,7 @@ export class AppointmentService {
         errorMessage = `Error Code: ${error.status}\nMessage: ${error.message}`;
       }
     }
-    
+
     return throwError(() => new Error(errorMessage));
   }
 
@@ -558,7 +679,8 @@ export class AppointmentService {
     return this.appointmentsSubject.value.filter(apt => apt.date === today);
   }
 
-  // Get appointments by status
+  // Get appointments by status from local state (filters already loaded appointments)
+  // For fetching from API with backend status, use fetchAppointmentsByStatusFromApi()
   getAppointmentsByStatus(status: Appointment['status']): Appointment[] {
     return this.appointmentsSubject.value.filter(apt => apt.status === status);
   }

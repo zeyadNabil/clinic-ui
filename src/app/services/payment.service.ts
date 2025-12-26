@@ -24,11 +24,12 @@ export interface Payment {
   createdAt: string;
 }
 
-// Backend payment structure
+// Backend payment structure (matches API response)
 interface BackendPayment {
   id: number;
   appointment: {
     id: number;
+    appointmentTime: string;
     patient: {
       id: number;
       username: string;
@@ -40,15 +41,14 @@ interface BackendPayment {
       email: string;
       specialty: string;
     };
-    appointmentTime: string;
-    reason: string;
-    status: string;
+    reason?: string; // Optional - may not be in payment response
+    status?: string; // Optional - may not be in payment response
   };
   amount: number;
-  paymentMethod: string;
-  status: string;
-  cardLast4?: string;
-  paymentDate?: string;
+  paymentMethod: string; // "CASH" | "VISA"
+  status: string; // "pending" | "paid" | "failed"
+  cardLast4?: string | null; // Can be null for CASH payments
+  paymentDate?: string | null; // Can be null for pending payments
   createdAt: string;
 }
 
@@ -83,43 +83,188 @@ export class PaymentService {
     private appointmentService: AppointmentService
   ) {
     this.loadInitialCards();
-    // Load payments when service is created
-    this.loadPayments().subscribe();
+    // Don't auto-load payments - let components decide when to load
+    // Only load if authenticated
+    if (this.authService.isAuthenticated()) {
+      this.loadPayments().subscribe({
+        error: (err) => console.error('Auto-load payments error:', err)
+      });
+    }
   }
 
+  /**
+   * Get HTTP headers with authentication token
+   * Note: The auth interceptor automatically injects the token for all HTTP requests,
+   * but we keep this method for explicit header control and as a fallback
+   */
   private getHeaders(): HttpHeaders {
     const token = this.authService.getToken();
-    return new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    });
+    const headers: { [key: string]: string } = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return new HttpHeaders(headers);
   }
 
-  // Load payments from backend
+  // Load payments from backend based on user role
   loadPayments(): Observable<Payment[]> {
+    // Check authentication first
+    if (!this.authService.isAuthenticated()) {
+      console.warn('User not authenticated - cannot load payments');
+      this.paymentsSubject.next([]);
+      return of([]);
+    }
+
     const role = this.authService.getUserRole();
     let endpoint = '';
 
+    // Determine endpoint based on role (according to API docs)
     if (role === 'ADMIN') {
-      endpoint = this.apiUrl; // Get all payments
+      endpoint = this.apiUrl; // GET /payments - Get all payments
     } else if (role === 'PATIENT') {
-      endpoint = `${this.apiUrl}/my-pending`; // Get patient's pending Visa payments
+      endpoint = `${this.apiUrl}/my-pending`; // GET /payments/my-pending - Get patient's pending Visa payments
     } else {
-      // For doctors, we'll filter by doctor name in the component
-      endpoint = this.apiUrl;
+      // For doctors, return empty (no specific endpoint in API docs)
+      console.warn('Doctor role - no specific payment endpoint');
+      this.paymentsSubject.next([]);
+      return of([]);
     }
 
-    return this.http.get<BackendPayment[]>(endpoint, { headers: this.getHeaders() })
+    console.log(`Loading payments from endpoint: ${endpoint} for role: ${role}`);
+
+    return this.http.get<BackendPayment[]>(endpoint, { 
+      headers: this.getHeaders(),
+      observe: 'body'
+    }).pipe(
+      map((backendPayments) => {
+        // Log the raw response for debugging
+        console.log('Raw payments response:', backendPayments);
+        console.log('Response type:', typeof backendPayments);
+        console.log('Is array?', Array.isArray(backendPayments));
+        
+        // Handle null or undefined response - treat as empty array
+        if (backendPayments === null || backendPayments === undefined) {
+          console.warn('⚠️ Backend returned null or undefined for payments - treating as empty array');
+          console.warn('This might indicate:');
+          console.warn('1. Backend endpoint issue - check backend logs');
+          console.warn('2. No payments exist for this user');
+          console.warn('3. Serialization issue on backend');
+          this.paymentsSubject.next([]);
+          return [];
+        }
+
+        // Handle non-array response (might be wrapped in an object)
+        if (!Array.isArray(backendPayments)) {
+          console.error('⚠️ Invalid payments response format - expected array but got:', typeof backendPayments);
+          console.error('Response value:', backendPayments);
+          // Try to extract array from response object
+          if (typeof backendPayments === 'object' && 'data' in backendPayments) {
+            console.log('Attempting to extract data from response object...');
+            const data = (backendPayments as any).data;
+            if (Array.isArray(data)) {
+              backendPayments = data as BackendPayment[];
+            } else {
+              console.error('Could not extract array from response object');
+              this.paymentsSubject.next([]);
+              return [];
+            }
+          } else {
+            this.paymentsSubject.next([]);
+            return [];
+          }
+        }
+
+        console.log(`✓ Received ${backendPayments.length} payments from backend`);
+        
+        if (backendPayments.length === 0) {
+          console.log('ℹ️ Backend returned empty array - no payments found');
+        }
+
+        const payments = backendPayments.map(bp => {
+          try {
+            return this.mapBackendToFrontend(bp);
+          } catch (error) {
+            console.error('Error mapping payment:', bp, error);
+            return null;
+          }
+        }).filter(p => p !== null) as Payment[];
+
+        console.log(`✓ Successfully mapped ${payments.length} payments`);
+        this.paymentsSubject.next(payments);
+        return payments;
+      }),
+      catchError((error: HttpErrorResponse) => {
+        console.error('✗ Load payments error:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          error: error.error,
+          url: error.url
+        });
+        this.paymentsSubject.next([]);
+        return of([]);
+      })
+    );
+  }
+
+  // Get pending payments (Admin only)
+  // According to API: GET /payments/pending
+  getPendingPayments(): Observable<Payment[]> {
+    return this.http.get<BackendPayment[]>(`${this.apiUrl}/pending`, { headers: this.getHeaders() })
       .pipe(
         map(backendPayments => {
-          const payments = (backendPayments || []).map(bp => this.mapBackendToFrontend(bp));
-          this.paymentsSubject.next(payments);
-          return payments;
+          if (!backendPayments || !Array.isArray(backendPayments)) {
+            return [];
+          }
+          return backendPayments.map(bp => this.mapBackendToFrontend(bp));
         }),
         catchError((error: HttpErrorResponse) => {
-          console.error('Load payments error:', error);
-          this.paymentsSubject.next([]);
+          console.error('Get pending payments error:', error);
           return of([]);
+        })
+      );
+  }
+
+  // Get payments by method (Admin only)
+  // According to API: GET /payments/method/{method}
+  getPaymentsByMethod(method: 'CASH' | 'VISA'): Observable<Payment[]> {
+    return this.http.get<BackendPayment[]>(`${this.apiUrl}/method/${method}`, { headers: this.getHeaders() })
+      .pipe(
+        map(backendPayments => {
+          if (!backendPayments || !Array.isArray(backendPayments)) {
+            return [];
+          }
+          return backendPayments.map(bp => this.mapBackendToFrontend(bp));
+        }),
+        catchError((error: HttpErrorResponse) => {
+          console.error('Get payments by method error:', error);
+          return of([]);
+        })
+      );
+  }
+
+  // Get payment by ID
+  // According to API: GET /payments/{id}
+  getPaymentById(id: number): Observable<Payment> {
+    return this.http.get<BackendPayment>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() })
+      .pipe(
+        map(backend => {
+          return this.mapBackendToFrontend(backend);
+        }),
+        catchError((error: HttpErrorResponse) => {
+          console.error('Get payment by ID error:', error);
+          let errorMessage = 'Failed to get payment';
+          if (error.error) {
+            if (typeof error.error === 'string') {
+              errorMessage = error.error;
+            } else if (error.error.message) {
+              errorMessage = error.error.message;
+            }
+          }
+          return throwError(() => new Error(errorMessage));
         })
       );
   }
@@ -149,9 +294,9 @@ export class PaymentService {
       clinicTax: clinicTax,
       doctorEarning: doctorEarning,
       status: (backend.status as 'pending' | 'paid' | 'failed') || 'pending',
-      paymentDate: backend.paymentDate,
+      paymentDate: backend.paymentDate || undefined, // Convert null to undefined
       paymentMethod: (backend.paymentMethod as 'CASH' | 'VISA') || 'CASH',
-      cardLast4: backend.cardLast4,
+      cardLast4: backend.cardLast4 || undefined, // Convert null to undefined
       createdAt: backend.createdAt || date
     };
   }
@@ -182,6 +327,7 @@ export class PaymentService {
   }
 
   // Create payment from appointment (for Visa payments)
+  // According to API: POST /payments
   createPayment(appointmentId: number, cardInfo: CardInfo): Observable<Payment> {
     const request = {
       appointmentId: appointmentId,
@@ -196,19 +342,26 @@ export class PaymentService {
           // Update local state immediately
           const current = this.paymentsSubject.value;
           this.paymentsSubject.next([...current, payment]);
-          // Reload to ensure sync
-          this.loadPayments().subscribe();
           return payment;
         }),
         catchError((error: HttpErrorResponse) => {
           console.error('Create payment error:', error);
-          return throwError(() => new Error(error.error?.message || 'Failed to create payment'));
+          let errorMessage = 'Failed to create payment';
+          if (error.error) {
+            if (typeof error.error === 'string') {
+              errorMessage = error.error;
+            } else if (error.error.message) {
+              errorMessage = error.error.message;
+            }
+          }
+          return throwError(() => new Error(errorMessage));
         })
       );
   }
 
-  // Mark payment as paid (admin) - for cash payments
-  markPaymentAsPaid(paymentId: number): Observable<Payment> {
+  // Approve payment (Admin only) - Mark payment as paid (for cash payments)
+  // According to API: PUT /payments/{id}/approve
+  approvePayment(paymentId: number): Observable<Payment> {
     return this.http.put<BackendPayment>(`${this.apiUrl}/${paymentId}/approve`, {}, { headers: this.getHeaders() })
       .pipe(
         map(backend => {
@@ -217,18 +370,30 @@ export class PaymentService {
           const current = this.paymentsSubject.value;
           const updated = current.map(p => p.id === paymentId ? payment : p);
           this.paymentsSubject.next(updated);
-          // Reload to ensure sync
-          this.loadPayments().subscribe();
           return payment;
         }),
         catchError((error: HttpErrorResponse) => {
           console.error('Approve payment error:', error);
-          return throwError(() => new Error(error.error?.message || 'Failed to approve payment'));
+          let errorMessage = 'Failed to approve payment';
+          if (error.error) {
+            if (typeof error.error === 'string') {
+              errorMessage = error.error;
+            } else if (error.error.message) {
+              errorMessage = error.error.message;
+            }
+          }
+          return throwError(() => new Error(errorMessage));
         })
       );
   }
 
-  // Deny payment (admin) - mark as failed
+  // Mark payment as paid (alias for approvePayment for backward compatibility)
+  markPaymentAsPaid(paymentId: number): Observable<Payment> {
+    return this.approvePayment(paymentId);
+  }
+
+  // Deny payment (Admin only) - Mark payment as failed
+  // According to API: PUT /payments/{id}/deny
   denyPayment(paymentId: number): Observable<Payment> {
     return this.http.put<BackendPayment>(`${this.apiUrl}/${paymentId}/deny`, {}, { headers: this.getHeaders() })
       .pipe(
@@ -238,13 +403,45 @@ export class PaymentService {
           const current = this.paymentsSubject.value;
           const updated = current.map(p => p.id === paymentId ? payment : p);
           this.paymentsSubject.next(updated);
-          // Reload to ensure sync
-          this.loadPayments().subscribe();
           return payment;
         }),
         catchError((error: HttpErrorResponse) => {
           console.error('Deny payment error:', error);
-          return throwError(() => new Error(error.error?.message || 'Failed to deny payment'));
+          let errorMessage = 'Failed to deny payment';
+          if (error.error) {
+            if (typeof error.error === 'string') {
+              errorMessage = error.error;
+            } else if (error.error.message) {
+              errorMessage = error.error.message;
+            }
+          }
+          return throwError(() => new Error(errorMessage));
+        })
+      );
+  }
+
+  // Delete payment (Admin only)
+  // According to API: DELETE /payments/{id}
+  deletePayment(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() })
+      .pipe(
+        tap(() => {
+          // Remove from local state immediately
+          const current = this.paymentsSubject.value;
+          const updated = current.filter(p => p.id !== id);
+          this.paymentsSubject.next(updated);
+        }),
+        catchError((error: HttpErrorResponse) => {
+          console.error('Delete payment error:', error);
+          let errorMessage = 'Failed to delete payment';
+          if (error.error) {
+            if (typeof error.error === 'string') {
+              errorMessage = error.error;
+            } else if (error.error.message) {
+              errorMessage = error.error.message;
+            }
+          }
+          return throwError(() => new Error(errorMessage));
         })
       );
   }
@@ -296,8 +493,8 @@ export class PaymentService {
   addCard(cardInfo: Omit<CardInfo, 'id' | 'last4'>): CardInfo {
     const cards = this.cardsSubject.value;
     const last4 = cardInfo.cardNumber.slice(-4);
-    const newId = cards.length > 0 
-      ? Math.max(...cards.map(c => c.id)) + 1 
+    const newId = cards.length > 0
+      ? Math.max(...cards.map(c => c.id)) + 1
       : 1;
 
     // If this is set as default, unset others
@@ -325,9 +522,9 @@ export class PaymentService {
   deleteCard(cardId: number): boolean {
     const cards = this.cardsSubject.value;
     const filtered = cards.filter(c => c.id !== cardId);
-    
+
     if (filtered.length === cards.length) return false;
-    
+
     this.cardsSubject.next(filtered);
     return true;
   }

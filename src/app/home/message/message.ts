@@ -50,47 +50,92 @@ export class MessagesComponent implements OnInit, OnDestroy {
     {
       id: 1,
       title: 'New appointment booked',
-      message: 'John Doe booked a checkup with Dr. Smith',
+      message: 'John Doe booked a checkup appointment for tomorrow at 10:00 AM',
       timeAgo: '5 minutes ago',
       type: 'appointment',
       read: false,
-      sentDate: '2024-12-20'
+      sentDate: new Date().toISOString().split('T')[0]
     },
     {
       id: 2,
       title: 'Payment received',
-      message: 'Payment received from John Doe - $150.00',
+      message: 'Payment of $150.00 received from Sarah Miller via VISA card ending in 4567',
       timeAgo: '1 hour ago',
       type: 'payment',
       read: false,
-      sentDate: '2024-12-20'
+      sentDate: new Date().toISOString().split('T')[0]
     },
     {
       id: 3,
       title: 'New message from patient',
-      message: 'Sarah Miller sent you a message',
+      message: 'Robert Johnson sent you a message: "I need to reschedule my appointment next week"',
       timeAgo: '2 hours ago',
       type: 'message',
       read: false,
-      sentDate: '2024-12-20'
+      sentDate: new Date().toISOString().split('T')[0]
     },
     {
       id: 4,
       title: 'Prescription ready',
-      message: 'Prescription results are ready for Emily Davis',
+      message: 'Prescription results are ready for Emily Davis. Please review and approve.',
       timeAgo: '3 hours ago',
       type: 'prescription',
       read: false,
-      sentDate: '2024-12-20'
+      sentDate: new Date().toISOString().split('T')[0]
     },
     {
       id: 5,
       title: 'Appointment cancelled',
-      message: 'Michael Wilson cancelled their appointment',
+      message: 'Michael Wilson cancelled their appointment scheduled for December 25th at 2:00 PM',
       timeAgo: '5 hours ago',
       type: 'cancel',
       read: true,
-      sentDate: '2024-12-20'
+      sentDate: new Date().toISOString().split('T')[0]
+    },
+    {
+      id: 6,
+      title: 'Appointment reminder',
+      message: 'Reminder: You have an appointment with Lisa Anderson tomorrow at 3:00 PM',
+      timeAgo: '1 day ago',
+      type: 'appointment',
+      read: false,
+      sentDate: new Date(Date.now() - 86400000).toISOString().split('T')[0]
+    },
+    {
+      id: 7,
+      title: 'Payment pending approval',
+      message: 'Cash payment of $200.00 from David Brown is pending your approval',
+      timeAgo: '1 day ago',
+      type: 'payment',
+      read: false,
+      sentDate: new Date(Date.now() - 86400000).toISOString().split('T')[0]
+    },
+    {
+      id: 8,
+      title: 'New prescription request',
+      message: 'Jennifer Taylor requested a prescription refill for her medication',
+      timeAgo: '2 days ago',
+      type: 'prescription',
+      read: true,
+      sentDate: new Date(Date.now() - 172800000).toISOString().split('T')[0]
+    },
+    {
+      id: 9,
+      title: 'Appointment confirmed',
+      message: 'Your appointment with Dr. Smith on December 28th at 11:00 AM has been confirmed',
+      timeAgo: '2 days ago',
+      type: 'appointment',
+      read: true,
+      sentDate: new Date(Date.now() - 172800000).toISOString().split('T')[0]
+    },
+    {
+      id: 10,
+      title: 'Welcome message',
+      message: 'Welcome to our clinic! We are here to help you with all your healthcare needs.',
+      timeAgo: '3 days ago',
+      type: 'message',
+      read: true,
+      sentDate: new Date(Date.now() - 259200000).toISOString().split('T')[0]
     }
   ];
 
@@ -144,14 +189,14 @@ export class MessagesComponent implements OnInit, OnDestroy {
 
     let filtered = [...this.allMessages];
 
-    if (this.user.role === 'doctor') {
+    if (this.user.role === 'DOCTOR') {
       filtered = filtered.filter(m =>
         m.type === 'appointment' ||
         m.type === 'cancel' ||
         m.type === 'message' ||
         m.message.toLowerCase().includes(this.user?.doctorName?.toLowerCase() || '')
       );
-    } else if (this.user.role === 'patient') {
+    } else if (this.user.role === 'PATIENT') {
       filtered = filtered.filter(m =>
         m.message.toLowerCase().includes(this.user?.name?.toLowerCase() || '')
       );
@@ -181,7 +226,7 @@ export class MessagesComponent implements OnInit, OnDestroy {
   }
 
   deleteMessage(id: number) {
-    if (this.user?.role !== 'admin') return;
+    if (this.user?.role !== 'ADMIN') return;
     if (confirm('Delete this message permanently?')) {
       this.allMessages = this.allMessages.filter(m => m.id !== id);
       this.saveMessages();
@@ -191,13 +236,13 @@ export class MessagesComponent implements OnInit, OnDestroy {
   }
 
   openSendModal() {
-    if (this.user?.role !== 'admin') return;
+    if (this.user?.role !== 'ADMIN') return;
     this.sendForm = { title: '', message: '', type: 'message' };
     this.showSendModal = true;
   }
 
   openReplyModal(message: Message) {
-    if (this.user?.role !== 'admin') return;
+    if (this.user?.role !== 'ADMIN') return;
     this.replyingTo = message;
     this.sendForm = {
       title: `Re: ${message.title}`,

@@ -37,7 +37,7 @@ export class Appointments implements OnInit, OnDestroy {
 
   // Clinic hours: 9 AM to 9 PM
   clinicHours: string[] = [];
-  
+
   // Get minimum date (today)
   get minDate(): string {
     const today = new Date();
@@ -53,7 +53,7 @@ export class Appointments implements OnInit, OnDestroy {
       // Add :00 (top of the hour)
       const time24 = hour.toString().padStart(2, '0') + ':00';
       this.clinicHours.push(time24);
-      
+
       // Add :30 (half past the hour), but not for 9 PM (21:00) as that's the closing time
       if (hour < 21) {
         const time24_30 = hour.toString().padStart(2, '0') + ':30';
@@ -74,19 +74,19 @@ export class Appointments implements OnInit, OnDestroy {
   // Handle date change - reset time if date is today and selected time has passed
   onDateChange(): void {
     if (!this.formData.date) return;
-    
+
     const selectedDate = new Date(this.formData.date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     selectedDate.setHours(0, 0, 0, 0);
-    
+
     // If selected date is today, check if selected time has passed
     if (selectedDate.getTime() === today.getTime() && this.formData.time) {
       const [hours, minutes] = this.formData.time.split(':');
       const selectedTime = new Date();
       selectedTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
       const now = new Date();
-      
+
       if (selectedTime < now) {
         // Time has passed, reset it
         this.formData.time = '';
@@ -123,7 +123,7 @@ export class Appointments implements OnInit, OnDestroy {
   ngOnInit() {
     // Initialize clinic hours (9 AM to 9 PM)
     this.initializeClinicHours();
-    
+
     // Subscribe to appointments first - this is the main data source
     const appointmentsSub = this.appointmentService.appointments$.subscribe(appointments => {
       this.appointments = appointments;
@@ -138,38 +138,30 @@ export class Appointments implements OnInit, OnDestroy {
         name: d.name,
         consultationFee: d.consultationFee || 100.0
       }));
-      console.log('Doctors updated from service:', this.doctors);
     });
     this.subscriptions.add(doctorsSub);
 
     // Wait for user to be loaded before loading data
-    const userSub = this.userService.currentUser$.subscribe(async user => {
+    const userSub = this.userService.currentUser$.subscribe(user => {
       this.user = user;
       this.updateStats();
-      
+
       // Only load data if user is authenticated
       if (user) {
-        // Small delay to ensure everything is initialized
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Load appointments when user is available (async)
-        try {
-          await this.appointmentService.loadAppointments();
-        } catch (error) {
-          console.error('Error loading appointments:', error);
-          // Retry once after a delay
-          setTimeout(async () => {
-            try {
-              await this.appointmentService.loadAppointments();
-            } catch (retryError) {
-              console.error('Error retrying appointments load:', retryError);
-            }
-          }, 1000);
-        }
+        // Load appointments when user is available
+        // The appointments$ subscription will automatically update when data loads
+        this.appointmentService.loadAppointments().subscribe({
+          error: (error) => {
+            console.error('Error loading appointments:', error);
+          }
+        });
+
         // Load doctors list
         this.loadDoctors();
         // Also trigger service load
-        this.doctorService.loadDoctors().catch(err => console.error('Error loading doctors from service:', err));
+        this.doctorService.loadDoctors().catch(err => {
+          console.error('Error loading doctors from service:', err);
+        });
       } else {
         // Clear data if user is not authenticated
         this.appointments = [];
@@ -195,51 +187,26 @@ export class Appointments implements OnInit, OnDestroy {
   loadDoctors() {
     // Only load if user is authenticated
     if (!this.user) {
-      console.warn('Cannot load doctors: user not authenticated');
       this.doctors = [];
       this.loadingDoctors = false;
       return;
     }
 
     this.loadingDoctors = true;
-    console.log('Loading doctors for role:', this.user.role);
-    
+
     // Try loading from service first (uses BehaviorSubject)
-    this.doctorService.loadDoctors().then(() => {
-      console.log('Doctors loaded from service');
-    }).catch(err => {
+    this.doctorService.loadDoctors().catch(err => {
       console.error('Service loadDoctors failed:', err);
     });
-    
+
     // Also call getDoctorsList directly
     const sub = this.doctorService.getDoctorsList().subscribe({
       next: (doctors) => {
-        console.log('getDoctorsList returned:', doctors);
-        console.log('Number of doctors:', doctors?.length || 0);
-        if (doctors && doctors.length > 0) {
-          console.log('Doctor names:', doctors.map(d => d.name));
-        }
         this.doctors = doctors || [];
         this.loadingDoctors = false;
-        console.log('Doctors loaded via getDoctorsList:', this.doctors.length, 'doctors');
-        if (this.doctors.length === 0) {
-          console.warn('No doctors returned from API - check if doctors exist in database');
-          console.warn('User role:', this.user?.role);
-          console.warn('API URL:', this.doctorService['apiUrl']);
-        } else {
-          console.log('Doctors list:', this.doctors.map(d => d.name));
-        }
       },
       error: (error) => {
         console.error('Failed to load doctors:', error);
-        console.error('Error status:', error.status);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.error);
-        if (error.status === 403) {
-          console.error('403 Forbidden - Check if user has correct role permissions');
-        } else if (error.status === 401) {
-          console.error('401 Unauthorized - Check if token is valid');
-        }
         this.doctors = [];
         this.loadingDoctors = false;
       }
@@ -301,7 +268,7 @@ export class Appointments implements OnInit, OnDestroy {
     const today = new Date().toISOString().split('T')[0];
     this.stats.total = this.appointments.length;
     this.stats.today = this.appointments.filter(apt => apt.date === today).length;
-    this.stats.pending = this.appointments.filter(apt => 
+    this.stats.pending = this.appointments.filter(apt =>
       apt.status === 'pending_approval' || apt.status === 'scheduled'
     ).length;
     this.stats.completed = this.appointments.filter(apt => apt.status === 'completed').length;
@@ -310,7 +277,7 @@ export class Appointments implements OnInit, OnDestroy {
   // Get filtered appointments based on role
   get filteredAppointments() {
     if (!this.user) return [];
-    
+
     // Backend already handles role-based filtering, so we just use the appointments as-is
     let filtered = [...this.appointments];
 
@@ -411,7 +378,7 @@ export class Appointments implements OnInit, OnDestroy {
   // Check if user can cancel appointment
   canCancelAppointment(appointment: Appointment): boolean {
     if (!this.user) return false;
-    
+
     if (this.user.role === 'DOCTOR') {
       // Doctor cannot cancel on the same day
       return !this.isAppointmentToday(appointment) &&
@@ -430,7 +397,7 @@ export class Appointments implements OnInit, OnDestroy {
   // Check if user can edit appointment
   canEditAppointment(appointment: Appointment): boolean {
     if (!this.user) return false;
-    
+
     if (this.user.role === 'PATIENT') {
       // Patient cannot edit if time has passed or if denied/cancelled/completed
       return !this.isAppointmentTimePassed(appointment) &&
@@ -444,10 +411,10 @@ export class Appointments implements OnInit, OnDestroy {
   // Open create modal
   openCreateModal() {
     if (!this.user) return;
-    
+
     // Always reload doctors to ensure they're available
     this.loadDoctors();
-    
+
     this.modalMode = 'create';
     this.editingAppointment = null;
     this.selectedDoctorFee = 0;
@@ -495,7 +462,7 @@ export class Appointments implements OnInit, OnDestroy {
   // Open edit modal
   openEditModal(appointment: Appointment) {
     if (!this.user) return;
-    
+
     // Check if user can edit
     if (this.user.role === 'PATIENT' && !this.canEditAppointment(appointment)) {
       if (this.isAppointmentTimePassed(appointment)) {
@@ -507,10 +474,10 @@ export class Appointments implements OnInit, OnDestroy {
     }
 
     if (!this.user) return;
-    
+
     this.modalMode = 'edit';
     this.editingAppointment = appointment;
-    
+
     // Find doctor ID from doctors list
     let doctorId = appointment.doctorId || 0;
     if (!doctorId && appointment.doctor) {
@@ -519,7 +486,7 @@ export class Appointments implements OnInit, OnDestroy {
         doctorId = foundDoctor.id;
       }
     }
-    
+
     this.formData = {
       patientName: this.user.role === 'PATIENT' ? this.user.name : appointment.patientName,
       doctorId: doctorId,
@@ -551,7 +518,7 @@ export class Appointments implements OnInit, OnDestroy {
   // Open cancel modal
   openCancelModal(appointment: Appointment) {
     if (!this.user) return;
-    
+
     if (!this.canCancelAppointment(appointment)) {
       if (this.user.role === 'DOCTOR' && this.isAppointmentToday(appointment)) {
         alert('You cannot cancel appointments on the same day.');
@@ -575,8 +542,6 @@ export class Appointments implements OnInit, OnDestroy {
   acceptAppointment(appointment: Appointment) {
     this.appointmentService.updateAppointment(appointment.id, { status: 'accepted' });
     alert('Appointment accepted successfully!');
-    // Service already updates BehaviorSubject immediately, but reload to ensure sync
-    this.appointmentService.loadAppointments().catch(err => console.error('Error reloading:', err));
   }
 
   // Deny appointment (Admin only)
@@ -584,8 +549,6 @@ export class Appointments implements OnInit, OnDestroy {
     if (confirm(`Are you sure you want to deny the appointment for ${appointment.patientName}?`)) {
       this.appointmentService.updateAppointment(appointment.id, { status: 'denied' });
       alert('Appointment denied successfully!');
-      // Service already updates BehaviorSubject immediately, but reload to ensure sync
-      this.appointmentService.loadAppointments().catch(err => console.error('Error reloading:', err));
     }
   }
 
@@ -611,7 +574,7 @@ export class Appointments implements OnInit, OnDestroy {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     selectedDate.setHours(0, 0, 0, 0);
-    
+
     if (selectedDate < today) {
       alert('Cannot book appointments for past dates. Please select today or a future date.');
       return;
@@ -635,7 +598,7 @@ export class Appointments implements OnInit, OnDestroy {
       const selectedTime = new Date();
       selectedTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
       const now = new Date();
-      
+
       if (selectedTime < now) {
         alert('Cannot book appointments for past times. Please select a future time.');
         return;
@@ -655,8 +618,6 @@ export class Appointments implements OnInit, OnDestroy {
         next: (appointment) => {
           this.closeModal();
           alert('Appointment created successfully!');
-          // Service already updates BehaviorSubject immediately, but reload to ensure sync
-          this.appointmentService.loadAppointments().catch(err => console.error('Error reloading:', err));
         },
         error: (error) => {
           alert('Failed to create appointment: ' + (error.message || 'Unknown error'));
@@ -671,7 +632,7 @@ export class Appointments implements OnInit, OnDestroy {
       }
 
       if (!this.user) return;
-      
+
       // Time is already in 24-hour format from dropdown, no conversion needed
       const patientName = this.user.role === 'PATIENT' ? this.user.name : this.formData.patientName;
 
@@ -695,7 +656,7 @@ export class Appointments implements OnInit, OnDestroy {
   // Cancel appointment with message
   confirmCancelAppointment() {
     if (!this.user) return;
-    
+
     if (!this.cancellationForm.message.trim()) {
       alert('Please provide a reason for cancellation.');
       return;
@@ -708,8 +669,6 @@ export class Appointments implements OnInit, OnDestroy {
         cancelledBy: this.user.role
       });
       alert('Appointment cancelled successfully!');
-      // Service already updates BehaviorSubject immediately, but reload to ensure sync
-      this.appointmentService.loadAppointments().catch(err => console.error('Error reloading:', err));
     }
     this.closeModal();
   }

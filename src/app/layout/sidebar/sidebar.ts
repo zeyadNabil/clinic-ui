@@ -44,7 +44,7 @@ export class Sidebar implements OnInit, OnDestroy {
       roles: ['PATIENT']
     },
     {
-      label: 'Message',
+      label: 'Messages',
       route: '/messages',
       icon: 'fas fa-comment-alt'
     },
