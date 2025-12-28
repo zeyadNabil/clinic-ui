@@ -83,7 +83,19 @@ export class PaymentsComponent implements OnInit, OnDestroy {
       this.user = user;
       if (user) {
         // Load payments when user is available
-        this.paymentService.loadPayments().subscribe();
+        const loadSub = this.paymentService.loadPayments().subscribe({
+          next: (payments) => {
+            console.log(`Loaded ${payments.length} payments for user: ${user.name} (${user.role})`);
+          },
+          error: (err) => {
+            console.error('Failed to load payments:', err);
+          }
+        });
+        this.subscriptions.add(loadSub);
+        // Also load appointments if needed
+        if (user.role === 'PATIENT') {
+          this.appointmentService.loadAppointments().subscribe();
+        }
       }
       this.updateData();
     });
@@ -92,6 +104,7 @@ export class PaymentsComponent implements OnInit, OnDestroy {
     // Subscribe to payments
     const paymentsSub = this.paymentService.payments$.subscribe(payments => {
       this.payments = payments;
+      console.log(`Payments updated: ${payments.length} payments in state`);
       this.updateData();
     });
     this.subscriptions.add(paymentsSub);
@@ -171,9 +184,13 @@ export class PaymentsComponent implements OnInit, OnDestroy {
   markAsPaid(payment: Payment) {
     if (confirm(`Approve cash payment of ${this.formatCurrency(payment.amount)} for ${payment.patientName}?`)) {
       const sub = this.paymentService.markPaymentAsPaid(payment.id).subscribe({
-        next: () => {
+        next: (updatedPayment) => {
+          console.log('Payment approved:', updatedPayment);
           alert('Payment approved successfully!');
-          this.paymentService.loadPayments().subscribe();
+          // Reload payments to get latest data
+          this.paymentService.loadPayments().subscribe({
+            error: (err) => console.error('Failed to reload payments:', err)
+          });
         },
         error: (error) => {
           alert('Failed to approve payment: ' + (error.message || 'Unknown error'));
@@ -187,9 +204,13 @@ export class PaymentsComponent implements OnInit, OnDestroy {
   denyPayment(payment: Payment) {
     if (confirm(`Deny cash payment of ${this.formatCurrency(payment.amount)} for ${payment.patientName}? This will mark the payment as failed.`)) {
       const sub = this.paymentService.denyPayment(payment.id).subscribe({
-        next: () => {
+        next: (updatedPayment) => {
+          console.log('Payment denied:', updatedPayment);
           alert('Payment denied successfully!');
-          this.paymentService.loadPayments().subscribe();
+          // Reload payments to get latest data
+          this.paymentService.loadPayments().subscribe({
+            error: (err) => console.error('Failed to reload payments:', err)
+          });
         },
         error: (error) => {
           alert('Failed to deny payment: ' + (error.message || 'Unknown error'));
@@ -203,6 +224,12 @@ export class PaymentsComponent implements OnInit, OnDestroy {
   // Doctor methods
   updateDoctorStats() {
     if (this.user?.doctorName) {
+      // Ensure payments are loaded for doctors
+      if (this.payments.length === 0 && this.user.role === 'DOCTOR') {
+        this.paymentService.loadPayments().subscribe({
+          error: (err) => console.error('Failed to load doctor payments:', err)
+        });
+      }
       this.doctorStats = this.paymentService.getDoctorStatistics(this.user.doctorName);
     }
   }
@@ -254,10 +281,7 @@ export class PaymentsComponent implements OnInit, OnDestroy {
     if (this.user) {
       // Show appointments with pending Visa payments
       this.appointments = this.appointments.filter(apt =>
-        apt.patientName === this.user!.name &&
-        apt.paymentMethod === 'VISA' &&
-        apt.paymentStatus === 'pending' &&
-        apt.amount && apt.amount > 0
+        apt.patientName === this.user!.name
       );
     }
   }
@@ -375,9 +399,17 @@ export class PaymentsComponent implements OnInit, OnDestroy {
       cardToUse
     ).subscribe({
       next: (payment) => {
+        console.log('Payment created successfully:', payment);
         alert(`Payment of ${this.formatCurrency(this.selectedAppointment!.amount!)} processed successfully!`);
         this.closePaymentModal();
-        this.paymentService.loadPayments().subscribe();
+        // Reload payments to get latest data
+        this.paymentService.loadPayments().subscribe({
+          error: (err) => console.error('Failed to reload payments:', err)
+        });
+        // Also reload appointments to update payment status
+        this.appointmentService.loadAppointments().subscribe({
+          error: (err) => console.error('Failed to reload appointments:', err)
+        });
       },
       error: (error) => {
         alert('Payment failed: ' + (error.message || 'Unknown error'));

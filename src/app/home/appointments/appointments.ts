@@ -236,10 +236,8 @@ export class Appointments implements OnInit, OnDestroy {
   showModal = false;
   showCancelModal = false;
   showMessageModal = false;
-  editingAppointment: Appointment | null = null;
   cancellingAppointment: Appointment | null = null;
   viewingMessageAppointment: Appointment | null = null;
-  modalMode = 'create'; // 'create' or 'edit'
 
   // Form data for modal
   formData = {
@@ -369,44 +367,20 @@ export class Appointments implements OnInit, OnDestroy {
     return now > aptDate;
   }
 
-  // Check if appointment is today (for doctor cancellation restriction)
-  isAppointmentToday(appointment: Appointment): boolean {
-    const today = new Date().toISOString().split('T')[0];
-    return appointment.date === today;
-  }
-
-  // Check if user can cancel appointment
+  // Check if user can cancel appointment (only for patients now)
   canCancelAppointment(appointment: Appointment): boolean {
     if (!this.user) return false;
 
-    if (this.user.role === 'DOCTOR') {
-      // Doctor cannot cancel on the same day
-      return !this.isAppointmentToday(appointment) &&
-             appointment.status !== 'cancelled' &&
-             appointment.status !== 'completed';
-    } else if (this.user.role === 'PATIENT') {
-      // Patient cannot cancel if time has passed
-      return !this.isAppointmentTimePassed(appointment) &&
-             appointment.status !== 'cancelled' &&
-             appointment.status !== 'completed' &&
-             appointment.status !== 'denied';
-    }
-    return false;
-  }
-
-  // Check if user can edit appointment
-  canEditAppointment(appointment: Appointment): boolean {
-    if (!this.user) return false;
-
     if (this.user.role === 'PATIENT') {
-      // Patient cannot edit if time has passed or if denied/cancelled/completed
+      // Patient can only cancel appointments that have been accepted by admin
+      // Backend logic: only APPROVED appointments can be cancelled by patients
       return !this.isAppointmentTimePassed(appointment) &&
-             appointment.status !== 'cancelled' &&
-             appointment.status !== 'completed' &&
-             appointment.status !== 'denied';
+             appointment.status === 'accepted';
     }
+
     return false;
   }
+
 
   // Open create modal
   openCreateModal() {
@@ -415,8 +389,6 @@ export class Appointments implements OnInit, OnDestroy {
     // Always reload doctors to ensure they're available
     this.loadDoctors();
 
-    this.modalMode = 'create';
-    this.editingAppointment = null;
     this.selectedDoctorFee = 0;
     this.formData = {
       patientName: this.user.role === 'PATIENT' ? this.user.name : '',
@@ -459,57 +431,12 @@ export class Appointments implements OnInit, OnDestroy {
     return `${hour12.toString().padStart(2, '0')}:${minutes} ${modifier}`;
   }
 
-  // Open edit modal
-  openEditModal(appointment: Appointment) {
-    if (!this.user) return;
-
-    // Check if user can edit
-    if (this.user.role === 'PATIENT' && !this.canEditAppointment(appointment)) {
-      if (this.isAppointmentTimePassed(appointment)) {
-        alert('You cannot edit appointments that have already passed.');
-      } else {
-        alert('You cannot edit this appointment.');
-      }
-      return;
-    }
-
-    if (!this.user) return;
-
-    this.modalMode = 'edit';
-    this.editingAppointment = appointment;
-
-    // Find doctor ID from doctors list
-    let doctorId = appointment.doctorId || 0;
-    if (!doctorId && appointment.doctor) {
-      const foundDoctor = this.doctors.find(d => d.name === appointment.doctor);
-      if (foundDoctor) {
-        doctorId = foundDoctor.id;
-      }
-    }
-
-    this.formData = {
-      patientName: this.user.role === 'PATIENT' ? this.user.name : appointment.patientName,
-      doctorId: doctorId,
-      doctor: appointment.doctor,
-      date: appointment.date,
-      time: this.convertTo24Hour(appointment.time),
-      type: appointment.type,
-      reason: appointment.reason || '',
-      status: appointment.status,
-      phone: appointment.phone || '',
-      email: appointment.email || '',
-      paymentMethod: appointment.paymentMethod || 'CASH',
-      amount: appointment.amount || 100.0
-    };
-    this.showModal = true;
-  }
 
   // Close modal
   closeModal() {
     this.showModal = false;
     this.showCancelModal = false;
     this.showMessageModal = false;
-    this.editingAppointment = null;
     this.cancellingAppointment = null;
     this.viewingMessageAppointment = null;
     this.cancellationForm.message = '';
@@ -520,10 +447,14 @@ export class Appointments implements OnInit, OnDestroy {
     if (!this.user) return;
 
     if (!this.canCancelAppointment(appointment)) {
-      if (this.user.role === 'DOCTOR' && this.isAppointmentToday(appointment)) {
-        alert('You cannot cancel appointments on the same day.');
-      } else if (this.user.role === 'PATIENT' && this.isAppointmentTimePassed(appointment)) {
-        alert('You cannot cancel appointments that have already passed.');
+      if (this.user.role === 'PATIENT') {
+        if (this.isAppointmentTimePassed(appointment)) {
+          alert('You cannot cancel appointments that have already passed.');
+        } else if (appointment.status !== 'accepted') {
+          alert('You can only cancel appointments that have been accepted by the admin. Current status: ' + this.getStatusText(appointment.status));
+        } else {
+          alert('You cannot cancel this appointment.');
+        }
       }
       return;
     }
@@ -540,19 +471,33 @@ export class Appointments implements OnInit, OnDestroy {
 
   // Accept appointment (Admin only)
   acceptAppointment(appointment: Appointment) {
-    this.appointmentService.updateAppointment(appointment.id, { status: 'accepted' });
-    alert('Appointment accepted successfully!');
+    this.appointmentService.approveAppointment(appointment.id).subscribe({
+      next: () => {
+        alert('Appointment accepted successfully!');
+      },
+      error: (error) => {
+        alert('Failed to accept appointment: ' + (error.error || error.message || 'Unknown error'));
+        console.error('Accept appointment error:', error);
+      }
+    });
   }
 
   // Deny appointment (Admin only)
   denyAppointment(appointment: Appointment) {
     if (confirm(`Are you sure you want to deny the appointment for ${appointment.patientName}?`)) {
-      this.appointmentService.updateAppointment(appointment.id, { status: 'denied' });
-      alert('Appointment denied successfully!');
+      this.appointmentService.denyAppointment(appointment.id).subscribe({
+        next: () => {
+          alert('Appointment denied successfully!');
+        },
+        error: (error) => {
+          alert('Failed to deny appointment: ' + (error.error || error.message || 'Unknown error'));
+          console.error('Deny appointment error:', error);
+        }
+      });
     }
   }
 
-  // Save appointment (create or update)
+  // Save appointment (create only)
   saveAppointment() {
     if (!this.formData.doctorId || this.formData.doctorId === 0) {
       alert('Please select a doctor');
@@ -605,55 +550,27 @@ export class Appointments implements OnInit, OnDestroy {
       }
     }
 
-    if (this.modalMode === 'create') {
-      // Create new appointment via backend
-      this.appointmentService.createAppointment({
-        doctorId: this.formData.doctorId,
-        date: this.formData.date,
-        time: this.formData.time,
-        reason: this.formData.reason,
-        paymentMethod: this.formData.paymentMethod,
-        amount: this.formData.amount
-      }).subscribe({
-        next: (appointment) => {
-          this.closeModal();
-          alert('Appointment created successfully!');
-        },
-        error: (error) => {
-          alert('Failed to create appointment: ' + (error.message || 'Unknown error'));
-          console.error('Create appointment error:', error);
-        }
-      });
-    } else if (this.modalMode === 'edit' && this.editingAppointment) {
-      // Update existing appointment
-      if (!this.canEditAppointment(this.editingAppointment)) {
-        alert('You cannot edit this appointment.');
-        return;
+    // Create new appointment via backend
+    this.appointmentService.createAppointment({
+      doctorId: this.formData.doctorId,
+      date: this.formData.date,
+      time: this.formData.time,
+      reason: this.formData.reason,
+      paymentMethod: this.formData.paymentMethod,
+      amount: this.formData.amount
+    }).subscribe({
+      next: (appointment) => {
+        this.closeModal();
+        alert('Appointment created successfully!');
+      },
+      error: (error) => {
+        alert('Failed to create appointment: ' + (error.message || 'Unknown error'));
+        console.error('Create appointment error:', error);
       }
-
-      if (!this.user) return;
-
-      // Time is already in 24-hour format from dropdown, no conversion needed
-      const patientName = this.user.role === 'PATIENT' ? this.user.name : this.formData.patientName;
-
-      this.appointmentService.updateAppointment(this.editingAppointment.id, {
-        patientName: patientName,
-        doctor: this.formData.doctor,
-        doctorId: this.formData.doctorId,
-        date: this.formData.date,
-        time: this.formData.time, // Already in 24-hour format
-        type: this.formData.type,
-        reason: this.formData.reason,
-        status: 'scheduled', // Backend uses 'Scheduled' status
-        phone: this.formData.phone,
-        email: this.formData.email
-      });
-      this.closeModal();
-      alert('Appointment updated successfully!');
-    }
+    });
   }
 
-  // Cancel appointment with message
+  // Cancel appointment (delete from database)
   confirmCancelAppointment() {
     if (!this.user) return;
 
@@ -663,23 +580,19 @@ export class Appointments implements OnInit, OnDestroy {
     }
 
     if (this.cancellingAppointment) {
-      this.appointmentService.updateAppointment(this.cancellingAppointment.id, {
-        status: 'cancelled',
-        cancellationMessage: this.cancellationForm.message,
-        cancelledBy: this.user.role
+      // Delete the appointment completely from database
+      this.appointmentService.deleteAppointment(this.cancellingAppointment.id).subscribe({
+        next: () => {
+          alert('Appointment cancelled and removed successfully!');
+          this.closeModal();
+        },
+        error: (error) => {
+          alert('Failed to cancel appointment: ' + (error.error || error.message || 'Unknown error'));
+          console.error('Cancel appointment error:', error);
+        }
       });
-      alert('Appointment cancelled successfully!');
-    }
-    this.closeModal();
-  }
-
-  // Delete appointment (Admin only - permanent delete)
-  deleteAppointment(appointment: Appointment) {
-    if (confirm(`Are you sure you want to permanently delete the appointment for ${appointment.patientName}?`)) {
-      this.appointmentService.deleteAppointment(appointment.id);
-      // The service will handle reloading automatically
-      // Show success message
-      alert('Appointment deleted successfully!');
+    } else {
+      this.closeModal();
     }
   }
 }

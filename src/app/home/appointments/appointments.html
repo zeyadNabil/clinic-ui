@@ -219,40 +219,15 @@
                                 <i class="fas fa-times"></i>
                               </button>
                             }
-                            <button
-                              class="btn btn-sm btn-outline-danger"
-                              (click)="deleteAppointment(appointment)"
-                              title="Delete">
-                              <i class="fas fa-trash"></i>
-                            </button>
-                          }
-
-                          <!-- Doctor Actions -->
-                          @if (user && user.role === 'DOCTOR') {
-                            @if (canCancelAppointment(appointment)) {
-                              <button
-                                class="btn btn-sm btn-outline-danger"
-                                (click)="openCancelModal(appointment)"
-                                title="Cancel Appointment">
-                                <i class="fas fa-ban"></i>
-                              </button>
-                            }
                           }
 
                           <!-- Patient Actions -->
                           @if (user && user.role === 'PATIENT') {
                             <button
-                              class="btn btn-sm btn-outline-primary"
-                              [disabled]="!canEditAppointment(appointment)"
-                              (click)="openEditModal(appointment)"
-                              [title]="canEditAppointment(appointment) ? 'Edit Appointment' : 'Cannot edit - appointment time has passed or is not editable'">
-                              <i class="fas fa-edit"></i>
-                            </button>
-                            <button
                               class="btn btn-sm btn-outline-danger"
                               [disabled]="!canCancelAppointment(appointment)"
                               (click)="openCancelModal(appointment)"
-                              [title]="canCancelAppointment(appointment) ? 'Cancel Appointment' : 'Cannot cancel - appointment time has passed or is not cancellable'">
+                              [title]="canCancelAppointment(appointment) ? 'Cancel Appointment' : 'Can only cancel accepted appointments that have not yet passed'">
                               <i class="fas fa-times"></i>
                             </button>
                           }
@@ -275,9 +250,7 @@
   <div class="modal-overlay" (click)="closeModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h5 class="modal-title">
-          {{ modalMode === 'create' ? 'Create New Appointment' : 'Edit Appointment' }}
-        </h5>
+        <h5 class="modal-title">Create New Appointment</h5>
         <button type="button" class="btn-close" (click)="closeModal()" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -419,7 +392,7 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" (click)="closeModal()">Cancel</button>
         <button type="button" class="btn btn-primary" (click)="saveAppointment()">
-          {{ modalMode === 'create' ? 'Create' : 'Update' }} Appointment
+          Create Appointment
         </button>
       </div>
     </div>
@@ -457,6 +430,9 @@
             [(ngModel)]="cancellationForm.message"
             name="cancellationMessage"
             required></textarea>
+          @if (user && user.role === 'PATIENT') {
+            <small class="text-warning mt-2 d-block">Note: This appointment will be permanently removed from the system.</small>
+          }
         </div>
       </div>
       <div class="modal-footer">

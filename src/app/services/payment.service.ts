@@ -95,16 +95,21 @@ export class PaymentService {
   /**
    * Get HTTP headers with authentication token
    * Note: The auth interceptor automatically injects the token for all HTTP requests,
-   * but we keep this method for explicit header control and as a fallback
+   * but we keep this method for explicit header control and as a fallback.
+   * Content-Type is only needed for POST/PUT requests with bodies.
    */
-  private getHeaders(): HttpHeaders {
+  private getHeaders(includeContentType: boolean = true): HttpHeaders {
     const token = this.authService.getToken();
-    const headers: { [key: string]: string } = {
-      'Content-Type': 'application/json'
-    };
+    const headers: { [key: string]: string } = {};
+
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+
     return new HttpHeaders(headers);
   }
 
@@ -125,17 +130,18 @@ export class PaymentService {
       endpoint = this.apiUrl; // GET /payments - Get all payments
     } else if (role === 'PATIENT') {
       endpoint = `${this.apiUrl}/my-pending`; // GET /payments/my-pending - Get patient's pending Visa payments
+    } else if (role === 'DOCTOR') {
+      endpoint = `${this.apiUrl}/doctor/my`; // GET /payments/doctor/my - Get doctor's payments
     } else {
-      // For doctors, return empty (no specific endpoint in API docs)
-      console.warn('Doctor role - no specific payment endpoint');
+      console.warn(`Unknown role: ${role} - cannot load payments`);
       this.paymentsSubject.next([]);
       return of([]);
     }
 
     console.log(`Loading payments from endpoint: ${endpoint} for role: ${role}`);
 
-    return this.http.get<BackendPayment[]>(endpoint, { 
-      headers: this.getHeaders(),
+    return this.http.get<BackendPayment[]>(endpoint, {
+      headers: this.getHeaders(false), // GET requests don't need Content-Type
       observe: 'body'
     }).pipe(
       map((backendPayments) => {
@@ -143,7 +149,7 @@ export class PaymentService {
         console.log('Raw payments response:', backendPayments);
         console.log('Response type:', typeof backendPayments);
         console.log('Is array?', Array.isArray(backendPayments));
-        
+
         // Handle null or undefined response - treat as empty array
         if (backendPayments === null || backendPayments === undefined) {
           console.warn('⚠️ Backend returned null or undefined for payments - treating as empty array');
@@ -177,7 +183,7 @@ export class PaymentService {
         }
 
         console.log(`✓ Received ${backendPayments.length} payments from backend`);
-        
+
         if (backendPayments.length === 0) {
           console.log('ℹ️ Backend returned empty array - no payments found');
         }
@@ -213,7 +219,7 @@ export class PaymentService {
   // Get pending payments (Admin only)
   // According to API: GET /payments/pending
   getPendingPayments(): Observable<Payment[]> {
-    return this.http.get<BackendPayment[]>(`${this.apiUrl}/pending`, { headers: this.getHeaders() })
+    return this.http.get<BackendPayment[]>(`${this.apiUrl}/pending`, { headers: this.getHeaders(false) })
       .pipe(
         map(backendPayments => {
           if (!backendPayments || !Array.isArray(backendPayments)) {
@@ -231,7 +237,7 @@ export class PaymentService {
   // Get payments by method (Admin only)
   // According to API: GET /payments/method/{method}
   getPaymentsByMethod(method: 'CASH' | 'VISA'): Observable<Payment[]> {
-    return this.http.get<BackendPayment[]>(`${this.apiUrl}/method/${method}`, { headers: this.getHeaders() })
+    return this.http.get<BackendPayment[]>(`${this.apiUrl}/method/${method}`, { headers: this.getHeaders(false) })
       .pipe(
         map(backendPayments => {
           if (!backendPayments || !Array.isArray(backendPayments)) {
@@ -249,7 +255,7 @@ export class PaymentService {
   // Get payment by ID
   // According to API: GET /payments/{id}
   getPaymentById(id: number): Observable<Payment> {
-    return this.http.get<BackendPayment>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() })
+    return this.http.get<BackendPayment>(`${this.apiUrl}/${id}`, { headers: this.getHeaders(false) })
       .pipe(
         map(backend => {
           return this.mapBackendToFrontend(backend);
@@ -342,6 +348,10 @@ export class PaymentService {
           // Update local state immediately
           const current = this.paymentsSubject.value;
           this.paymentsSubject.next([...current, payment]);
+          // Reload payments to ensure consistency with backend
+          this.loadPayments().subscribe({
+            error: (err) => console.error('Failed to reload payments after create:', err)
+          });
           return payment;
         }),
         catchError((error: HttpErrorResponse) => {
@@ -370,6 +380,10 @@ export class PaymentService {
           const current = this.paymentsSubject.value;
           const updated = current.map(p => p.id === paymentId ? payment : p);
           this.paymentsSubject.next(updated);
+          // Reload payments to ensure consistency
+          this.loadPayments().subscribe({
+            error: (err) => console.error('Failed to reload payments after approve:', err)
+          });
           return payment;
         }),
         catchError((error: HttpErrorResponse) => {
@@ -403,6 +417,10 @@ export class PaymentService {
           const current = this.paymentsSubject.value;
           const updated = current.map(p => p.id === paymentId ? payment : p);
           this.paymentsSubject.next(updated);
+          // Reload payments to ensure consistency
+          this.loadPayments().subscribe({
+            error: (err) => console.error('Failed to reload payments after deny:', err)
+          });
           return payment;
         }),
         catchError((error: HttpErrorResponse) => {
@@ -423,13 +441,17 @@ export class PaymentService {
   // Delete payment (Admin only)
   // According to API: DELETE /payments/{id}
   deletePayment(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`, { headers: this.getHeaders() })
+    return this.http.delete<void>(`${this.apiUrl}/${id}`, { headers: this.getHeaders(false) })
       .pipe(
         tap(() => {
           // Remove from local state immediately
           const current = this.paymentsSubject.value;
           const updated = current.filter(p => p.id !== id);
           this.paymentsSubject.next(updated);
+          // Reload payments to ensure consistency
+          this.loadPayments().subscribe({
+            error: (err) => console.error('Failed to reload payments after delete:', err)
+          });
         }),
         catchError((error: HttpErrorResponse) => {
           console.error('Delete payment error:', error);

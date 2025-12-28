@@ -558,7 +558,7 @@ export class AppointmentService {
     return statusMap[status] || 'PENDING';
   }
 
-  // Delete appointment (Cancel appointment)
+  // Delete appointment (Cancel appointment for patient)
   // According to API: DELETE /appointments/{id} - PATIENT can only cancel their own
   // Token interceptor will automatically add Authorization header
   deleteAppointment(id: number): Observable<void> {
