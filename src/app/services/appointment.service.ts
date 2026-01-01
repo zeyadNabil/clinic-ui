@@ -90,7 +90,6 @@ export class AppointmentService {
           this.autoLoadTimeout = setTimeout(() => {
             this.loadAppointments().subscribe({
               next: () => {
-                console.log('Auto-loaded appointments successfully');
               },
               error: (err) => {
                 console.error('Auto-load appointments error:', err);
@@ -309,7 +308,6 @@ export class AppointmentService {
       return this.appointments$;
     }
 
-    console.log(`Loading appointments from endpoint: ${endpoint} for role: ${userRole}`);
 
     // Fetch and map appointments
     return this.http.get<BackendAppointment[]>(endpoint, {
@@ -340,10 +338,8 @@ export class AppointmentService {
           return [];
         }
 
-        console.log(`✓ Received ${appointments.length} appointments from backend`);
 
         if (appointments.length === 0) {
-          console.log('ℹ️ Backend returned empty array - user has no appointments');
           this.appointmentsSubject.next([]);
           this.isLoadingSubject.next(false);
           return [];
@@ -358,7 +354,6 @@ export class AppointmentService {
           }
         }).filter(apt => apt !== null) as Appointment[];
 
-        console.log(`✓ Successfully mapped ${mapped.length} appointments`);
 
         // Update local state
         this.appointmentsSubject.next(mapped);
@@ -406,14 +401,11 @@ export class AppointmentService {
       amount: appointment.amount
     });
 
-    console.log('Creating appointment with request:', request);
-    console.log('Headers:', this.getHeaders());
 
     return this.http.post<BackendAppointment>(this.apiUrl, request, {
       headers: this.getHeaders()
     }).pipe(
       map((backendAppt) => {
-        console.log('Appointment creation response:', backendAppt);
         if (!backendAppt) {
           throw new Error('Empty response from server');
         }

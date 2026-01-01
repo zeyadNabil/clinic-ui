@@ -85,7 +85,6 @@ export class PaymentsComponent implements OnInit, OnDestroy {
         // Load payments when user is available
         const loadSub = this.paymentService.loadPayments().subscribe({
           next: (payments) => {
-            console.log(`Loaded ${payments.length} payments for user: ${user.name} (${user.role})`);
           },
           error: (err) => {
             console.error('Failed to load payments:', err);
@@ -104,7 +103,6 @@ export class PaymentsComponent implements OnInit, OnDestroy {
     // Subscribe to payments
     const paymentsSub = this.paymentService.payments$.subscribe(payments => {
       this.payments = payments;
-      console.log(`Payments updated: ${payments.length} payments in state`);
       this.updateData();
     });
     this.subscriptions.add(paymentsSub);
@@ -185,7 +183,6 @@ export class PaymentsComponent implements OnInit, OnDestroy {
     if (confirm(`Approve cash payment of ${this.formatCurrency(payment.amount)} for ${payment.patientName}?`)) {
       const sub = this.paymentService.markPaymentAsPaid(payment.id).subscribe({
         next: (updatedPayment) => {
-          console.log('Payment approved:', updatedPayment);
           alert('Payment approved successfully!');
           // Reload payments to get latest data
           this.paymentService.loadPayments().subscribe({
@@ -205,7 +202,6 @@ export class PaymentsComponent implements OnInit, OnDestroy {
     if (confirm(`Deny cash payment of ${this.formatCurrency(payment.amount)} for ${payment.patientName}? This will mark the payment as failed.`)) {
       const sub = this.paymentService.denyPayment(payment.id).subscribe({
         next: (updatedPayment) => {
-          console.log('Payment denied:', updatedPayment);
           alert('Payment denied successfully!');
           // Reload payments to get latest data
           this.paymentService.loadPayments().subscribe({
@@ -399,7 +395,6 @@ export class PaymentsComponent implements OnInit, OnDestroy {
       cardToUse
     ).subscribe({
       next: (payment) => {
-        console.log('Payment created successfully:', payment);
         alert(`Payment of ${this.formatCurrency(this.selectedAppointment!.amount!)} processed successfully!`);
         this.closePaymentModal();
         // Reload payments to get latest data

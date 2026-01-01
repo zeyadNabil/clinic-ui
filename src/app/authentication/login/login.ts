@@ -64,10 +64,8 @@ export class Login implements OnInit, OnDestroy {
         this.loading = false;
         // User info is already stored in auth service
         // Update user service with the response - prioritize username field from response
-        console.log('Login response received in component:', response);
         // Prioritize username field (which is the actual username), then name
         const userName = response.username || response.name || 'User';
-        console.log('Using username/name:', userName, 'username field:', response.username, 'name field:', response.name);
         if (response.email && response.role) {
           const userData = {
             name: userName, // Use username from response first, then name, never email
@@ -75,7 +73,6 @@ export class Login implements OnInit, OnDestroy {
             role: response.role.toUpperCase() as 'ADMIN' | 'DOCTOR' | 'PATIENT',
             doctorName: response.role === 'DOCTOR' ? userName : undefined
           };
-          console.log('Setting current user with name (not email):', userData);
           this.userService.setCurrentUser(userData);
         }
         // Navigate to dashboard

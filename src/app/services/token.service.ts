@@ -39,7 +39,6 @@ export class TokenService {
     if (expiresIn && expiresIn > 0) {
       const expiryTime = Date.now() + expiresIn;
       localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiryTime.toString());
-      console.log(`Token stored. Expires in ${expiresIn / 1000 / 60} minutes (at ${new Date(expiryTime).toLocaleString()})`);
     } else {
       // Try to get expiry from token itself
       try {
@@ -48,7 +47,6 @@ export class TokenService {
           // exp is in seconds, convert to milliseconds
           const expiryTime = decoded.exp * 1000;
           localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiryTime.toString());
-          console.log(`Token expiry calculated from JWT. Expires at ${new Date(expiryTime).toLocaleString()}`);
         }
       } catch (e) {
         console.warn('Could not decode token to get expiry time', e);
@@ -245,7 +243,6 @@ export class TokenService {
     // Remove TokenService managed keys (token, userRole, userData, tokenExpiry)
     this.removeToken();
     
-    console.log('All authentication data cleared from localStorage');
   }
 }
 

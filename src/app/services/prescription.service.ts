@@ -92,8 +92,6 @@ export class PrescriptionService {
 
     if (role === 'PATIENT') {
       endpoint = `${this.apiUrl}/my-prescriptions`;
-    } else if (role === 'DOCTOR') {
-      endpoint = `${this.apiUrl}/doctor/my-prescriptions`;
     } else {
       // Invalid role - return empty array instead of throwing error
       console.warn('Invalid role for loading prescriptions:', role);
@@ -127,25 +125,6 @@ export class PrescriptionService {
         catchError((error: HttpErrorResponse) => {
           console.error('Get prescription error:', error);
           return throwError(() => new Error(error.error?.message || 'Failed to get prescription'));
-        })
-      );
-  }
-
-  // Update prescription (DOCTOR only)
-  updatePrescription(id: number, prescription: Prescription): Observable<Prescription> {
-    return this.http.put<BackendPrescription>(`${this.apiUrl}/${id}`, prescription, { headers: this.getHeaders() })
-      .pipe(
-        map(backend => {
-          const mapped = this.mapBackendToFrontend(backend);
-          // Update local state immediately - component will auto-update via subscription
-          const current = this.prescriptions$.value;
-          const updated = current.map(p => p.id === id ? mapped : p);
-          this.prescriptions$.next(updated);
-          return mapped;
-        }),
-        catchError((error: HttpErrorResponse) => {
-          console.error('Update prescription error:', error);
-          return throwError(() => new Error(error.error?.message || 'Failed to update prescription'));
         })
       );
   }

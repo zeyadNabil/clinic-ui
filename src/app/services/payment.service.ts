@@ -138,7 +138,6 @@ export class PaymentService {
       return of([]);
     }
 
-    console.log(`Loading payments from endpoint: ${endpoint} for role: ${role}`);
 
     return this.http.get<BackendPayment[]>(endpoint, {
       headers: this.getHeaders(false), // GET requests don't need Content-Type
@@ -146,9 +145,6 @@ export class PaymentService {
     }).pipe(
       map((backendPayments) => {
         // Log the raw response for debugging
-        console.log('Raw payments response:', backendPayments);
-        console.log('Response type:', typeof backendPayments);
-        console.log('Is array?', Array.isArray(backendPayments));
 
         // Handle null or undefined response - treat as empty array
         if (backendPayments === null || backendPayments === undefined) {
@@ -167,7 +163,6 @@ export class PaymentService {
           console.error('Response value:', backendPayments);
           // Try to extract array from response object
           if (typeof backendPayments === 'object' && 'data' in backendPayments) {
-            console.log('Attempting to extract data from response object...');
             const data = (backendPayments as any).data;
             if (Array.isArray(data)) {
               backendPayments = data as BackendPayment[];
@@ -182,10 +177,8 @@ export class PaymentService {
           }
         }
 
-        console.log(`✓ Received ${backendPayments.length} payments from backend`);
 
         if (backendPayments.length === 0) {
-          console.log('ℹ️ Backend returned empty array - no payments found');
         }
 
         const payments = backendPayments.map(bp => {
@@ -197,7 +190,6 @@ export class PaymentService {
           }
         }).filter(p => p !== null) as Payment[];
 
-        console.log(`✓ Successfully mapped ${payments.length} payments`);
         this.paymentsSubject.next(payments);
         return payments;
       }),

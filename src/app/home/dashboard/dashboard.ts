@@ -57,12 +57,12 @@ export class Dashboard implements OnInit, OnDestroy {
     // Wait for user to be loaded before loading data
     const userSub = this.userService.currentUser$.subscribe(async user => {
       this.user = user;
-      
+
       // Only load data if user is authenticated
       if (user) {
         // Small delay to ensure everything is initialized
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         // Load appointments when user is available (async)
         try {
           await this.appointmentService.loadAppointments();
@@ -173,7 +173,7 @@ export class Dashboard implements OnInit, OnDestroy {
   openPrescriptionModal(): void {
     // Get unique patients from appointments
     const patientMap = new Map<number, { id: number; name: string; email: string }>();
-    
+
     // Extract unique patients from appointments
     this.appointments.forEach(apt => {
       if (apt.patientId && apt.patientName) {
@@ -213,9 +213,9 @@ export class Dashboard implements OnInit, OnDestroy {
 
   // Save prescription
   savePrescription(): void {
-    if (!this.prescriptionFormData.patientId || 
-        !this.prescriptionFormData.diagnosis || 
-        !this.prescriptionFormData.medications || 
+    if (!this.prescriptionFormData.patientId ||
+        !this.prescriptionFormData.diagnosis ||
+        !this.prescriptionFormData.medications ||
         !this.prescriptionFormData.instructions) {
       alert('Please fill in all required fields');
       return;
